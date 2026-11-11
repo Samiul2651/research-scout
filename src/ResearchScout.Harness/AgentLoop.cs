@@ -6,17 +6,30 @@ using ResearchScout.Harness.Tools;
 namespace ResearchScout.Harness;
 
 /// <summary>
-/// The agent loop: ask the model → run the tools it asked for → send the results back → repeat,
-/// until the model answers without tool calls or <see cref="AgentRunOptions.MaxSteps"/> is reached.
+/// The agent loop: ask the model → run the tools it asked for → send the results back → repeat.
+///
+/// Stops when:
+/// <list type="bullet">
+/// <item>the model answers without tool calls (<see cref="AgentRunStatus.Completed"/>),</item>
+/// <item><see cref="AgentRunOptions.MaxSteps"/> model calls were made (<see cref="AgentRunStatus.MaxStepsReached"/>),</item>
+/// <item>the run's token or cost budget is used up (<see cref="AgentRunStatus.BudgetExceeded"/>),</item>
+/// <item>a model call fails and retries can't fix it (<see cref="AgentRunStatus.ModelError"/>).</item>
+/// </list>
 ///
 /// Works with any <see cref="IChatClient"/>. It never uses FunctionInvokingChatClient: every tool call goes
-/// through <see cref="RunToolAsync"/>, so this class decides what runs, records it, and (later) applies the budget
-/// and approval gate.
+/// through <see cref="RunToolAsync"/>, so this class decides what runs and records it.
 /// </summary>
-public sealed class AgentLoop(IChatClient chat, ToolRegistry tools)
+public sealed class AgentLoop(
+    IChatClient chat,
+    ToolRegistry tools,
+    ICostCalculator? costCalculator = null,
+    RetryPolicy? retryPolicy = null)
 {
     // Same settings as Microsoft.Extensions.AI uses, but compact: tool input is stored in traces.
     private static readonly JsonSerializerOptions CompactJson = new(AIJsonUtilities.DefaultOptions) { WriteIndented = false };
+
+    private readonly ICostCalculator _cost = costCalculator ?? ZeroCostCalculator.Instance;
+    private readonly RetryPolicy _retry = retryPolicy ?? new RetryPolicy();
 
     public async Task<AgentRunResult> RunAsync(
         string userMessage,
@@ -31,12 +44,33 @@ public sealed class AgentLoop(IChatClient chat, ToolRegistry tools)
         var messages = new List<ChatMessage> { new(ChatRole.User, userMessage) };
         var steps = new List<AgentStep>();
         var totalUsage = new UsageDetails();
+        var budget = new BudgetTracker(options.Budget);
         var lastText = string.Empty;
+
+        AgentRunResult Finish(AgentRunStatus status, string? reason = null) =>
+            new(status, lastText, messages, steps, totalUsage, budget.CostUsd, reason);
 
         for (var stepNumber = 1; stepNumber <= options.MaxSteps; stepNumber++)
         {
             var clock = Stopwatch.StartNew();
-            var response = await chat.GetResponseAsync(messages, chatOptions, cancellationToken).ConfigureAwait(false);
+            ChatResponse response;
+            int attempts;
+            try
+            {
+                (response, attempts) = await _retry.ExecuteAsync(
+                    ct => chat.GetResponseAsync(messages, chatOptions, ct), cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+#pragma warning disable CA1031 // Any provider failure ends the run with a readable reason instead of an exception.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                return Finish(AgentRunStatus.ModelError, $"Model call failed at step {stepNumber}: {ex.GetType().Name}: {ex.Message}");
+            }
+
             var modelDuration = clock.Elapsed;
 
             // Keep the assistant messages exactly as returned: they can carry provider data
@@ -48,6 +82,8 @@ public sealed class AgentLoop(IChatClient chat, ToolRegistry tools)
                 totalUsage.Add(response.Usage);
             }
 
+            var cost = _cost.CostUsd(response);
+            budget.Add(response.Usage, cost);
             lastText = response.Text;
 
             var calls = response.Messages
@@ -58,8 +94,15 @@ public sealed class AgentLoop(IChatClient chat, ToolRegistry tools)
 
             if (calls.Count == 0)
             {
-                steps.Add(NewStep(stepNumber, response, modelDuration, []));
-                return new AgentRunResult(AgentRunStatus.Completed, lastText, messages, steps, totalUsage);
+                steps.Add(NewStep(stepNumber, response, cost, attempts, modelDuration, []));
+                return Finish(AgentRunStatus.Completed);
+            }
+
+            // The model wants more work, but the next call would go over budget: stop before running tools.
+            if (budget.ExceededReason() is { } reason)
+            {
+                steps.Add(NewStep(stepNumber, response, cost, attempts, modelDuration, []));
+                return Finish(AgentRunStatus.BudgetExceeded, reason);
             }
 
             var records = new List<ToolCallRecord>(calls.Count);
@@ -74,10 +117,10 @@ public sealed class AgentLoop(IChatClient chat, ToolRegistry tools)
             }
 
             messages.Add(new ChatMessage(ChatRole.Tool, results));
-            steps.Add(NewStep(stepNumber, response, modelDuration, records));
+            steps.Add(NewStep(stepNumber, response, cost, attempts, modelDuration, records));
         }
 
-        return new AgentRunResult(AgentRunStatus.MaxStepsReached, lastText, messages, steps, totalUsage);
+        return Finish(AgentRunStatus.MaxStepsReached, $"Stopped after {options.MaxSteps} model calls without a final answer.");
     }
 
     private ChatOptions BuildChatOptions(AgentRunOptions options)
@@ -139,8 +182,9 @@ public sealed class AgentLoop(IChatClient chat, ToolRegistry tools)
         }
     }
 
-    private static AgentStep NewStep(int number, ChatResponse response, TimeSpan modelDuration, IReadOnlyList<ToolCallRecord> calls) =>
-        new(number, response.ModelId, response.Usage, modelDuration, response.Text, calls, response.AdditionalProperties);
+    private static AgentStep NewStep(
+        int number, ChatResponse response, decimal cost, int attempts, TimeSpan modelDuration, IReadOnlyList<ToolCallRecord> calls) =>
+        new(number, response.ModelId, response.Usage, cost, attempts, modelDuration, response.Text, calls, response.AdditionalProperties);
 
     private static string Truncate(string text, int maxChars) =>
         text.Length <= maxChars ? text : string.Concat(text.AsSpan(0, maxChars), $"\n[cut: {text.Length - maxChars} more characters]");

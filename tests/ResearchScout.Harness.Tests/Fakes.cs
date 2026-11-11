@@ -5,9 +5,10 @@ using ResearchScout.Harness.Tools;
 namespace ResearchScout.Harness.Tests;
 
 /// <summary>A fake model that returns scripted replies in order and records what it was sent.</summary>
-internal sealed class ScriptedChatClient(params ChatResponse[] replies) : IChatClient
+/// Script entries are <see cref="ChatResponse"/>s to return or <see cref="Exception"/>s to throw.
+internal sealed class ScriptedChatClient(params object[] script) : IChatClient
 {
-    private readonly Queue<ChatResponse> _replies = new(replies);
+    private readonly Queue<object> _script = new(script);
 
     /// <summary>A copy of the message list sent on each call.</summary>
     public List<List<ChatMessage>> Requests { get; } = [];
@@ -19,7 +20,8 @@ internal sealed class ScriptedChatClient(params ChatResponse[] replies) : IChatC
         cancellationToken.ThrowIfCancellationRequested();
         Requests.Add([.. messages]);
         Options.Add(options);
-        return Task.FromResult(_replies.Count > 0 ? _replies.Dequeue() : throw new InvalidOperationException("Script ran out of replies."));
+        var next = _script.Count > 0 ? _script.Dequeue() : throw new InvalidOperationException("Script ran out of replies.");
+        return next is Exception ex ? Task.FromException<ChatResponse>(ex) : Task.FromResult((ChatResponse)next);
     }
 
     public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
@@ -39,10 +41,12 @@ internal sealed class ScriptedChatClient(params ChatResponse[] replies) : IChatC
             Usage = new UsageDetails { InputTokenCount = inputTokens, OutputTokenCount = outputTokens },
         };
 
-    public static ChatResponse Calls(params FunctionCallContent[] calls) =>
+    public static ChatResponse Calls(params FunctionCallContent[] calls) => CallsWithUsage(10, 5, calls);
+
+    public static ChatResponse CallsWithUsage(int inputTokens, int outputTokens, params FunctionCallContent[] calls) =>
         new(new ChatMessage(ChatRole.Assistant, [.. calls]))
         {
-            Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 5 },
+            Usage = new UsageDetails { InputTokenCount = inputTokens, OutputTokenCount = outputTokens },
         };
 
     public static FunctionCallContent Call(string id, string name, object? args = null) =>
@@ -68,4 +72,25 @@ internal sealed class LambdaTool(string name, Func<JsonElement, ToolResult> run,
 
     public static LambdaTool Echo(string name = "echo") =>
         new(name, input => ToolResult.Ok("echo:" + (input.TryGetProperty("q", out var q) ? q.GetString() : "")));
+}
+
+/// <summary>Charges a fixed amount per response.</summary>
+internal sealed class FixedCostCalculator(decimal perResponse) : ICostCalculator
+{
+    public decimal CostUsd(ChatResponse response) => perResponse;
+}
+
+internal static class TestRetry
+{
+    /// <summary>Real retry rules, but no sleeping; records the waits.</summary>
+    public static RetryPolicy NoWait(List<TimeSpan>? waits = null, int maxAttempts = 3) => new()
+    {
+        MaxAttempts = maxAttempts,
+        Random = () => 1.0,
+        Delay = (wait, _) =>
+        {
+            waits?.Add(wait);
+            return Task.CompletedTask;
+        },
+    };
 }

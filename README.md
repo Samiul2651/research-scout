@@ -30,3 +30,24 @@ docker compose up -d          # local Postgres + Qdrant
 dotnet build ResearchScout.slnx
 dotnet test ResearchScout.slnx
 ```
+
+## Try the agent loop (no database needed)
+
+Put at least one API key in a `.env` file in the repo root (it is git-ignored):
+
+```bash
+ANTHROPIC_API_KEY=...
+# GEMINI_API_KEY=...
+# DEEPSEEK_API_KEY=...
+```
+
+Then:
+
+```bash
+cd src/ResearchScout.Cli
+dotnet run -- models
+dotnet run -- chat "What is 17.5 times 3, and what time is it in UTC?"
+dotnet run -- chat "Same question" --model gemini/gemini-3.5-flash-lite
+```
+
+`chat` uses two demo tools (current time, calculator) and prints each step: tokens, cost, time, and every tool call.

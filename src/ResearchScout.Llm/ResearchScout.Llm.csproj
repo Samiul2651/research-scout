@@ -13,4 +13,8 @@
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="11.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ResearchScout.Harness\ResearchScout.Harness.csproj" />
+  </ItemGroup>
+
 </Project>

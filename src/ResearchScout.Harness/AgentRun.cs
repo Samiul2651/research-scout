@@ -21,6 +21,9 @@ public sealed record AgentRunOptions
     /// The loop sets Tools, Instructions and MaxOutputTokens itself.
     /// </summary>
     public ChatOptions? BaseChatOptions { get; init; }
+
+    /// <summary>Token and cost limits for this run.</summary>
+    public RunBudget Budget { get; init; } = new();
 }
 
 public enum AgentRunStatus
@@ -30,6 +33,12 @@ public enum AgentRunStatus
 
     /// <summary>Stopped after <see cref="AgentRunOptions.MaxSteps"/> model calls without a final answer.</summary>
     MaxStepsReached,
+
+    /// <summary>Stopped because the run's token or cost budget was used up.</summary>
+    BudgetExceeded,
+
+    /// <summary>A model call failed and could not be retried (or retries ran out). See <see cref="AgentRunResult.StopReason"/>.</summary>
+    ModelError,
 }
 
 /// <summary>One tool call inside a step.</summary>
@@ -46,6 +55,8 @@ public sealed record AgentStep(
     int Number,
     string? ModelId,
     UsageDetails? Usage,
+    decimal CostUsd,
+    int Attempts,
     TimeSpan ModelDuration,
     string Text,
     IReadOnlyList<ToolCallRecord> ToolCalls,
@@ -56,4 +67,6 @@ public sealed record AgentRunResult(
     string FinalText,
     IReadOnlyList<ChatMessage> Messages,
     IReadOnlyList<AgentStep> Steps,
-    UsageDetails Usage);
+    UsageDetails Usage,
+    decimal CostUsd,
+    string? StopReason = null);

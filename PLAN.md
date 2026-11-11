@@ -111,7 +111,7 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 - [x] **T2** `Llm` project: `LlmProviderRegistry` (Claude, Gemini, DeepSeek, OpenAI; only providers with a key are offered), `ModelCatalog` (appsettings), `ILlmSettingsStore` + in-memory version, `SwitchableChatClient`. Tests: switching takes effect on the next call; unknown/unconfigured provider is rejected.
 - [x] **T3** `ToolRegistry` + `ITool`; turn tool schemas into `AIFunctionDeclaration`s for `ChatOptions.Tools`.
 - [x] **T4** `AgentLoop`: loop, tool dispatch, error-to-model handling, max steps.
-- [ ] **T5** `Budget` (per-run limits) + retry with backoff.
+- [x] **T5** `Budget` (per-run limits) + retry with backoff.
 - [ ] **T6** `Infra`: EF Core DbContext + first migration (tables: `runs`, `steps`, `professors`, `papers`, `chunks`, `api_cache`, `daily_spend`, `app_settings`). `PostgresLlmSettingsStore`, `PostgresTraceStore` + `scout trace <runId>`.
 - [ ] **T7** `IApprovalGate` + console implementation.
 - [ ] **T8** `PaperFetcher`: Semantic Scholar author search + recent papers; arXiv PDF download. Cache API responses in `api_cache`.
