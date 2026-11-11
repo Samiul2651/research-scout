@@ -1,0 +1,28 @@
+# Build + test on every push and PR.
+# The Render deploy step is added later in task D4.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ResearchScout.slnx
+
+      - name: Build
+        run: dotnet build ResearchScout.slnx --no-restore -c Release
+
+      - name: Test
+        run: dotnet test ResearchScout.slnx --no-build -c Release --verbosity normal
