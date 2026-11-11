@@ -13,6 +13,13 @@ public class ArchitectureTests
         "ResearchScout.Papers",
         "ResearchScout.Scout",
         "ResearchScout.Infra",
+        "ResearchScout.Llm",
+    ];
+
+    // The harness talks to models only through IChatClient. Provider SDKs belong in ResearchScout.Llm.
+    private static readonly string[] AllowedHarnessPackages =
+    [
+        "Microsoft.Extensions.AI.Abstractions",
     ];
 
     [Fact]
@@ -33,6 +40,17 @@ public class ArchitectureTests
         var projectReferences = XDocument.Load(csproj).Descendants("ProjectReference").ToList();
 
         Assert.Empty(projectReferences);
+    }
+
+    [Fact]
+    public void HarnessProject_UsesOnlyAllowedPackages()
+    {
+        var csproj = Path.Combine(FindRepoRoot(), "src", "ResearchScout.Harness", "ResearchScout.Harness.csproj");
+        var packages = XDocument.Load(csproj)
+            .Descendants("PackageReference")
+            .Select(p => (string?)p.Attribute("Include") ?? string.Empty);
+
+        Assert.All(packages, package => Assert.Contains(package, AllowedHarnessPackages));
     }
 
     private static string FindRepoRoot()

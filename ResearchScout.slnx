@@ -5,10 +5,12 @@
     <Project Path="src/ResearchScout.Eval/ResearchScout.Eval.csproj" />
     <Project Path="src/ResearchScout.Harness/ResearchScout.Harness.csproj" />
     <Project Path="src/ResearchScout.Infra/ResearchScout.Infra.csproj" />
+    <Project Path="src/ResearchScout.Llm/ResearchScout.Llm.csproj" />
     <Project Path="src/ResearchScout.Papers/ResearchScout.Papers.csproj" />
     <Project Path="src/ResearchScout.Scout/ResearchScout.Scout.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ResearchScout.Harness.Tests/ResearchScout.Harness.Tests.csproj" />
+    <Project Path="tests/ResearchScout.Llm.Tests/ResearchScout.Llm.Tests.csproj" />
   </Folder>
 </Solution>

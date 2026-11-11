@@ -5,6 +5,7 @@
     <ProjectReference Include="..\ResearchScout.Papers\ResearchScout.Papers.csproj" />
     <ProjectReference Include="..\ResearchScout.Scout\ResearchScout.Scout.csproj" />
     <ProjectReference Include="..\ResearchScout.Infra\ResearchScout.Infra.csproj" />
+    <ProjectReference Include="..\ResearchScout.Llm\ResearchScout.Llm.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

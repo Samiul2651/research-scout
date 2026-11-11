@@ -108,7 +108,7 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 
 ### Saturday — harness + paper pipeline
 - [x] **T1** Create solution, projects and folder layout above. Add `docker-compose.yml` with local Postgres + local Qdrant for dev. Config keys read from env / user secrets: `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `DATABASE_URL`.
-- [ ] **T2** `Llm` project: `LlmProviderRegistry` (Claude, Gemini, DeepSeek, OpenAI; only providers with a key are offered), `ModelCatalog` (appsettings), `ILlmSettingsStore` + in-memory version, `SwitchableChatClient`. Tests: switching takes effect on the next call; unknown/unconfigured provider is rejected.
+- [x] **T2** `Llm` project: `LlmProviderRegistry` (Claude, Gemini, DeepSeek, OpenAI; only providers with a key are offered), `ModelCatalog` (appsettings), `ILlmSettingsStore` + in-memory version, `SwitchableChatClient`. Tests: switching takes effect on the next call; unknown/unconfigured provider is rejected.
 - [ ] **T3** `ToolRegistry` + `ITool`; turn tool schemas into `AIFunctionDeclaration`s for `ChatOptions.Tools`.
 - [ ] **T4** `AgentLoop`: loop, tool dispatch, error-to-model handling, max steps.
 - [ ] **T5** `Budget` (per-run limits) + retry with backoff.

@@ -11,7 +11,8 @@ A C#/.NET research assistant, driven by my own agent harness (no agent SDK), tha
 
 | Project | What it holds |
 |---|---|
-| `ResearchScout.Harness` | The agent loop. Knows nothing about papers. References no other project. |
+| `ResearchScout.Harness` | The agent loop. Knows nothing about papers or providers. References no other project; only package is `Microsoft.Extensions.AI.Abstractions`. |
+| `ResearchScout.Llm` | Provider plumbing: Claude, Gemini, DeepSeek, OpenAI behind one `IChatClient`, switchable at runtime |
 | `ResearchScout.Papers` | Paper fetching, PDF chunking, embeddings, hybrid search |
 | `ResearchScout.Scout` | The agent's tools and the fit scorer |
 | `ResearchScout.Infra` | EF Core + Postgres (traces, cache, daily spend) |
