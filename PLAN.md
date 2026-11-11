@@ -13,6 +13,7 @@
 |---|---|---|---|
 | Deploy | OFF | **ON** (Render free, Docker) | Live demo link for CV |
 | .NET | 9 | **10** | 10 is the current LTS (long-term support) |
+| LLM calls | Raw `HttpClient` to Claude only | **Microsoft.Extensions.AI `IChatClient`** + official SDKs; Claude, Gemini, DeepSeek, OpenAI | Switch provider/model at runtime from the dashboard |
 | Embeddings | Ollama local | **Voyage AI API** | Free host has 512 MB RAM, can't run Ollama; first 200M Voyage tokens are free |
 | Vector DB | Qdrant in Docker | **Qdrant Cloud free cluster** (1 GB RAM, 4 GB disk) | Same Qdrant code, just hosted |
 | Storage | SQLite | **Supabase Postgres** | Render free disk is wiped on every restart/sleep |
@@ -27,7 +28,7 @@
 | Part | Choice | Why |
 |---|---|---|
 | Language | C# / .NET 10 (LTS), ASP.NET Core Web API + console app | My main stack |
-| LLM | Anthropic Messages API (Claude Haiku), raw `HttpClient`, **no SDK** | The harness is the point: I build the loop myself |
+| LLM | Microsoft.Extensions.AI `IChatClient`, one per provider: Claude (`Anthropic` SDK), Gemini (`Google.GenAI`), DeepSeek (`Anthropic` SDK on DeepSeek's Anthropic-format URL), OpenAI (`Microsoft.Extensions.AI.OpenAI`) | One interface, switchable at runtime. The harness still owns the loop: **no `FunctionInvokingChatClient`**, no agent framework |
 | Embeddings | Voyage AI API (one model for ingest and queries) | Free tier, no GPU needed on the host |
 | Vector DB | Qdrant Cloud free cluster | Already used Qdrant in CodeLens |
 | Keyword search | BM25 (in-memory index, rebuilt from Postgres on startup) | Hybrid search = BM25 + vectors |
@@ -43,13 +44,17 @@
 
 ```
 ResearchScout.slnx
-├── Harness/          # my agent loop — knows nothing about papers
-│   ├── AgentLoop       (LLM → tool calls → results → repeat)
-│   ├── ToolRegistry    (tools + JSON schemas)
-│   ├── AnthropicClient (raw HttpClient, streaming SSE)
+├── Harness/          # my agent loop — knows nothing about papers or providers
+│   ├── AgentLoop       (IChatClient → tool calls → results → repeat)
+│   ├── ToolRegistry    (tools → AIFunctionDeclaration schemas)
 │   ├── Budget          (max steps, max tokens, max $ per run, daily $ cap)
 │   ├── IApprovalGate   (console or web implementation plugs in)
 │   └── ITraceStore     (interface only; Postgres version lives in Infra)
+├── Llm/              # provider plumbing — the only project that references provider SDKs
+│   ├── LlmProviderRegistry (provider name → IChatClient, built from API keys in env)
+│   ├── ModelCatalog        (allowed models + $ per million tokens, from appsettings)
+│   ├── SwitchableChatClient(IChatClient that reads the current provider/model on every call)
+│   └── ILlmSettingsStore   (current provider/model; Postgres version in Infra)
 ├── Papers/           # ingest + retrieval
 │   ├── PaperFetcher    (Semantic Scholar + arXiv, responses cached in Postgres)
 │   ├── PdfChunker      (chunks keep paper id + page number)
@@ -64,20 +69,20 @@ ResearchScout.slnx
 └── Eval/             # small citation + ranking checks
 ```
 
-**Rule:** `Harness` must not reference `Papers`, `Scout` or `Infra`. Tools, trace store and approval gate plug in from outside through interfaces. That way the harness is reusable for my other projects.
+**Rule:** `Harness` must not reference `Papers`, `Scout`, `Infra` or `Llm`, and its only NuGet package is `Microsoft.Extensions.AI.Abstractions`. Tools, trace store and approval gate plug in from outside through interfaces. That way the harness is reusable for my other projects.
 
 ---
 
 ## Harness spec (the core)
 
-1. **Loop:** send messages + tool schemas → if the reply has `tool_use` blocks, run each tool, append `tool_result`, repeat → stop on `end_turn`, max steps (default 12), or budget hit.
+1. **Loop:** call `IChatClient.GetResponseAsync(messages, options with tool declarations)` → if the reply has `FunctionCallContent`, run each tool, append `FunctionResultContent`, repeat → stop when there are no tool calls, max steps (default 12), or budget hit. Always append the full assistant message (it carries provider data such as thought signatures).
 2. **Tool interface:** `ITool { Name; Description; JsonSchema InputSchema; Task<ToolResult> RunAsync(JsonElement input, CancellationToken ct); bool NeedsApproval; }`
 3. **Approval gate:** tools with `NeedsApproval = true` (for example `draft_email`) pause the loop and call `IApprovalGate`.
    - Console: y/n prompt.
    - Web: send SSE event `approval_needed {runId, tool, input}`; wait for `POST /runs/{runId}/approve` or `/reject`; auto-reject after 5 minutes.
-4. **Errors:** a tool that throws returns `is_error: true` to the model instead of crashing the loop. Retry API calls on 429/5xx with backoff (max 3 tries).
+4. **Errors:** a tool that throws returns an error result to the model instead of crashing the loop. Retry API calls on 429/5xx with backoff (max 3 tries).
 5. **Budget:**
-   - Per run: count input/output tokens from each response; stop and report when over the limit.
+   - Per run: count input/output tokens from `ChatResponse.Usage`, priced with the current model's rates from `ModelCatalog`; stop and report when over the limit.
    - Per day: before each LLM call, check today's spend (UTC) in Postgres; if it would pass **$0.50**, stop and return "Daily demo limit reached, try tomorrow." Add spend with one atomic `UPDATE … SET spent = spent + @cost` (no read-then-write race).
 6. **Tracing:** save each step (prompt size, tool name, input, output preview, tokens, cost, ms) through `ITraceStore`. CLI `trace <runId>` prints it; `GET /runs/{runId}/trace` returns it.
 7. **Streaming:** stream text and step events to the client over SSE.
@@ -103,11 +108,11 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 
 ### Saturday — harness + paper pipeline
 - [x] **T1** Create solution, projects and folder layout above. Add `docker-compose.yml` with local Postgres + local Qdrant for dev. Config keys read from env / user secrets: `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `DATABASE_URL`.
-- [ ] **T2** `AnthropicClient`: non-streaming Messages call with tools; typed request/response models.
-- [ ] **T3** `ToolRegistry` + `ITool`; serialize tool schemas into the request.
+- [ ] **T2** `Llm` project: `LlmProviderRegistry` (Claude, Gemini, DeepSeek, OpenAI; only providers with a key are offered), `ModelCatalog` (appsettings), `ILlmSettingsStore` + in-memory version, `SwitchableChatClient`. Tests: switching takes effect on the next call; unknown/unconfigured provider is rejected.
+- [ ] **T3** `ToolRegistry` + `ITool`; turn tool schemas into `AIFunctionDeclaration`s for `ChatOptions.Tools`.
 - [ ] **T4** `AgentLoop`: loop, tool dispatch, error-to-model handling, max steps.
 - [ ] **T5** `Budget` (per-run limits) + retry with backoff.
-- [ ] **T6** `Infra`: EF Core DbContext + first migration (tables: `runs`, `steps`, `professors`, `papers`, `chunks`, `api_cache`, `daily_spend`). `PostgresTraceStore` + `scout trace <runId>`.
+- [ ] **T6** `Infra`: EF Core DbContext + first migration (tables: `runs`, `steps`, `professors`, `papers`, `chunks`, `api_cache`, `daily_spend`, `app_settings`). `PostgresLlmSettingsStore`, `PostgresTraceStore` + `scout trace <runId>`.
 - [ ] **T7** `IApprovalGate` + console implementation.
 - [ ] **T8** `PaperFetcher`: Semantic Scholar author search + recent papers; arXiv PDF download. Cache API responses in `api_cache`.
 - [ ] **T9** `PdfChunker` with PdfPig: ~500-token chunks, 50 overlap, keep page number.
@@ -118,9 +123,9 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 - [ ] **T12** Wrap the tools in the table above as `ITool` classes.
 - [ ] **T13** `FitScorer` + `score_fit` tool.
 - [ ] **T14** System prompt: answers must cite `[paper, page]` for each claim; say "not found" instead of guessing.
-- [ ] **T15** Streaming in `AnthropicClient` + SSE endpoint `POST /ask`.
-- [ ] **T16** Daily $ cap in `Budget` (uses `daily_spend` table, atomic update) + web `IApprovalGate` (SSE event + approve/reject endpoints, 5-min timeout).
-- [ ] **T17** Web page in `Api/wwwroot` (plain HTML + JS, no framework): ask box, streamed answer, citation links, step list, approve/reject buttons, "today's demo budget used" bar. Designer bot makes the mockup first.
+- [ ] **T15** Streaming via `IChatClient.GetStreamingResponseAsync` in the loop + SSE endpoint `POST /ask`.
+- [ ] **T16** Daily $ cap in `Budget` (uses `daily_spend` table, atomic update) + web `IApprovalGate` (SSE event + approve/reject endpoints, 5-min timeout) + admin endpoints `GET/PUT /admin/llm` (list providers/models, set current), protected by `ADMIN_PASSWORD` (constant-time compare, rate-limited).
+- [ ] **T17** Web page in `Api/wwwroot` (plain HTML + JS, no framework): ask box, streamed answer, citation links, step list, approve/reject buttons, "today's demo budget used" bar, current model label, and an admin panel (password) with provider + model dropdowns. Designer bot makes the mockup first.
 - [ ] **T18** `Eval`: 15 hand-written questions over 5 papers → check the cited page holds the answer (citation accuracy); 1 university → check my known good-fit professors land in the top 5.
 
 ### Weekday evening — deploy
@@ -140,6 +145,8 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 
 ## Review checklist (strict reviewer bot)
 - Harness has no references to `Papers` / `Scout` / `Infra`.
+- Only `Llm` references provider SDKs; `Harness` uses `IChatClient` only.
+- No `FunctionInvokingChatClient` or agent framework anywhere (the loop is mine).
 - No API key in code, logs or traces; keys from user secrets / env vars only.
 - No HTTP or DB calls inside loops that could be one batch call (embed chunks in batches; insert chunks in one batch).
 - Every external call has a timeout and cancellation token.
@@ -156,8 +163,8 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 - After $0.50 of spend in a day, the live demo refuses politely.
 
 ## CV bullet (target, fill real numbers after eval)
-**Research Scout** — C#, .NET, Anthropic API, Qdrant, Voyage AI, PostgreSQL, Docker · [live demo]
-- Built my own LLM agent harness from scratch (tool registry, approval gates, token + daily cost budgets, step tracing, SSE streaming) with no agent SDK.
+**Research Scout** — C#, .NET, Microsoft.Extensions.AI, Claude/Gemini/DeepSeek, Qdrant, Voyage AI, PostgreSQL, Docker · [live demo]
+- Built my own LLM agent harness (tool registry, approval gates, token + daily cost budgets, step tracing, SSE streaming) with no agent framework; switch between Claude, Gemini and DeepSeek at runtime from an admin dashboard.
 - Built hybrid RAG (BM25 + vectors, RRF) over research papers with page-level citations; [X]% citation accuracy on a [N]-question eval set.
 - Ranks supervisors by matching their recent papers to a research profile; good-fit professors in the top 5 for [X]/[Y] test cases.
 - Deployed with Docker + GitHub Actions CI/CD to free hosting, with a daily spend cap for the public demo.
