@@ -26,8 +26,21 @@ public sealed class QdrantVectorStore(QdrantClient client, string collection = "
     /// <summary>Upserts are sent in batches of this size (one request each).</summary>
     public const int UpsertBatchSize = 256;
 
+    /// <summary>Every Qdrant call gives up after this long (gRPC calls have no deadline by default).</summary>
+    public static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(30);
+
+    private static CancellationTokenSource WithTimeout(CancellationToken cancellationToken)
+    {
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(CallTimeout);
+        return cts;
+    }
+
     public async Task EnsureCollectionAsync(int dimensions, CancellationToken cancellationToken)
     {
+        using var cts = WithTimeout(cancellationToken);
+        cancellationToken = cts.Token;
+
         if (await client.CollectionExistsAsync(collection, cancellationToken).ConfigureAwait(false))
         {
             return;
@@ -56,7 +69,8 @@ public sealed class QdrantVectorStore(QdrantClient client, string collection = "
                 Payload = { ["paper_id"] = p.PaperId, ["page"] = p.Page },
             }).ToList();
 
-            await client.UpsertAsync(collection, structs, cancellationToken: cancellationToken).ConfigureAwait(false);
+            using var cts = WithTimeout(cancellationToken);
+            await client.UpsertAsync(collection, structs, cancellationToken: cts.Token).ConfigureAwait(false);
         }
     }
 
@@ -73,12 +87,13 @@ public sealed class QdrantVectorStore(QdrantClient client, string collection = "
             });
         }
 
+        using var cts = WithTimeout(cancellationToken);
         var hits = await client.QueryAsync(
             collection,
             query: query.ToArray(),
             filter: filter,
             limit: (ulong)limit,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            cancellationToken: cts.Token).ConfigureAwait(false);
 
         return [.. hits.Select(h => new VectorHit(Guid.Parse(h.Id.Uuid), h.Score))];
     }

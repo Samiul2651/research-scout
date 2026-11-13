@@ -90,6 +90,21 @@ public class SemanticScholarClientTests
     }
 
     [Fact]
+    public async Task AuthorPapers_ReadsEveryPage_SoRecentPapersOnLaterPagesAreFound()
+    {
+        // Page 1 (offset 0) has only old papers and says there is more ("next"); page 2 has this year's paper.
+        var page1 = "{\"offset\": 0, \"next\": 100, \"data\": [" +
+            string.Join(",", Enumerable.Range(0, 100).Select(i => $"{{\"paperId\": \"old{i}\", \"title\": \"Old {i}\", \"year\": 2012}}")) + "]}";
+        var page2 = """{"offset": 100, "data": [{"paperId": "new1", "title": "Brand new", "year": 2026}]}""";
+        var handler = new RoutedHandler().On("offset=100", page2).On("offset=0", page1);
+
+        var papers = await Client(handler).GetAuthorPapersAsync("99", fromYear: 2024, default);
+
+        Assert.Equal("Brand new", Assert.Single(papers).Title);
+        Assert.Equal(2, handler.Calls.Count);
+    }
+
+    [Fact]
     public async Task GetAuthors_UsesOneBatchRequest()
     {
         var handler = new RoutedHandler().On("author/batch", """

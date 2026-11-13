@@ -91,13 +91,31 @@ public sealed class SemanticScholarClient
         return [.. json.RootElement.EnumerateArray().Where(a => a.ValueKind == JsonValueKind.Object).Select(ParseAuthor)];
     }
 
-    /// <summary>An author's papers from <paramref name="fromYear"/> on, newest first.</summary>
+    /// <summary>Most papers read per author (10 pages of 100). Covers even very prolific researchers.</summary>
+    public const int MaxAuthorPapers = 1000;
+
+    /// <summary>
+    /// An author's papers from <paramref name="fromYear"/> on, newest first. Reads every page of the author's
+    /// paper list (100 per page, up to <see cref="MaxAuthorPapers"/>), because the API does not sort by year:
+    /// stopping at the first page could miss recent papers of prolific authors.
+    /// </summary>
     public async Task<IReadOnlyList<PaperInfo>> GetAuthorPapersAsync(string authorId, int fromYear, CancellationToken cancellationToken)
     {
-        var json = await GetJsonAsync(
-            $"author/{Uri.EscapeDataString(authorId)}/papers?limit=100&fields={PaperFields}", cancellationToken).ConfigureAwait(false);
+        var all = new List<PaperInfo>();
+        for (var offset = 0; offset < MaxAuthorPapers; offset += 100)
+        {
+            using var json = await GetJsonAsync(
+                $"author/{Uri.EscapeDataString(authorId)}/papers?offset={offset}&limit=100&fields={PaperFields}", cancellationToken).ConfigureAwait(false);
+            all.AddRange(Data(json).Select(ParsePaper));
 
-        return [.. Data(json).Select(ParsePaper).Where(p => p.Year >= fromYear).OrderByDescending(p => p.Year)];
+            // "next" is only present when there are more papers.
+            if (!json.RootElement.TryGetProperty("next", out var next) || next.ValueKind != JsonValueKind.Number)
+            {
+                break;
+            }
+        }
+
+        return [.. all.Where(p => p.Year >= fromYear).OrderByDescending(p => p.Year)];
     }
 
     /// <summary>
