@@ -1,0 +1,20 @@
+{
+  "_note": "Starter set. Evidence phrases must appear (case-insensitive) on the page that answers the question. Check each one against the PDF and edit as needed before trusting the numbers.",
+  "questions": [
+    { "id": "rag-1", "paperId": "arxiv:2005.11401", "question": "In the RAG paper (arXiv:2005.11401), what two model variants are proposed?", "evidence": ["RAG-Sequence", "RAG-Token"] },
+    { "id": "rag-2", "paperId": "arxiv:2005.11401", "question": "In the RAG paper (arXiv:2005.11401), which retriever is used?", "evidence": ["DPR"] },
+    { "id": "rag-3", "paperId": "arxiv:2005.11401", "question": "In the RAG paper (arXiv:2005.11401), which pre-trained model is used as the generator?", "evidence": ["BART"] },
+    { "id": "rag-4", "paperId": "arxiv:2005.11401", "question": "In the RAG paper (arXiv:2005.11401), which open-domain QA datasets are used for evaluation?", "evidence": ["Natural Questions"] },
+    { "id": "csn-1", "paperId": "arxiv:1909.09436", "question": "In the CodeSearchNet paper (arXiv:1909.09436), which programming languages does the corpus cover?", "evidence": ["Ruby", "PHP"] },
+    { "id": "csn-2", "paperId": "arxiv:1909.09436", "question": "In the CodeSearchNet paper (arXiv:1909.09436), what metric is used for the CodeSearchNet Challenge?", "evidence": ["NDCG"] },
+    { "id": "csn-3", "paperId": "arxiv:1909.09436", "question": "In the CodeSearchNet paper (arXiv:1909.09436), how is retrieval performance on the test set measured?", "evidence": ["MRR"] },
+    { "id": "cb-1", "paperId": "arxiv:2002.08155", "question": "In the CodeBERT paper (arXiv:2002.08155), which pre-training objectives are used?", "evidence": ["replaced token detection"] },
+    { "id": "cb-2", "paperId": "arxiv:2002.08155", "question": "In the CodeBERT paper (arXiv:2002.08155), which existing model is CodeBERT's architecture based on?", "evidence": ["RoBERTa"] },
+    { "id": "cb-3", "paperId": "arxiv:2002.08155", "question": "In the CodeBERT paper (arXiv:2002.08155), what dataset is CodeBERT trained on?", "evidence": ["CodeSearchNet"] },
+    { "id": "lim-1", "paperId": "arxiv:2307.03172", "question": "In 'Lost in the Middle' (arXiv:2307.03172), where in the input context do models use information best?", "evidence": ["beginning", "end"] },
+    { "id": "lim-2", "paperId": "arxiv:2307.03172", "question": "In 'Lost in the Middle' (arXiv:2307.03172), which two tasks are used in the experiments?", "evidence": ["multi-document question answering", "key-value retrieval"] },
+    { "id": "rc-1", "paperId": "arxiv:2303.12570", "question": "In the RepoCoder paper (arXiv:2303.12570), how does RepoCoder combine retrieval and generation?", "evidence": ["iterative"] },
+    { "id": "rc-2", "paperId": "arxiv:2303.12570", "question": "In the RepoCoder paper (arXiv:2303.12570), what benchmark do the authors build?", "evidence": ["RepoEval"] },
+    { "id": "none-1", "paperId": "arxiv:2002.08155", "question": "According to the CodeBERT paper (arXiv:2002.08155), what is the population of Dhaka?", "unanswerable": true }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "_note": "Fill in with real names. 'candidates' = professors to rank (e.g. the whole CS faculty list); 'knownGoodFit' = the ones you already know fit you. The eval checks how many of knownGoodFit land in the top 5.",
+  "cases": [
+    {
+      "university": "Memorial University of Newfoundland",
+      "topic": "large language models for software engineering",
+      "candidates": [],
+      "knownGoodFit": []
+    }
+  ]
+}

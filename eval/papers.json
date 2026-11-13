@@ -1,0 +1,10 @@
+{
+  "_note": "Papers the eval ingests. ids as accepted by ingest_paper.",
+  "papers": [
+    "arXiv:2005.11401",
+    "arXiv:1909.09436",
+    "arXiv:2002.08155",
+    "arXiv:2307.03172",
+    "arXiv:2303.12570"
+  ]
+}
