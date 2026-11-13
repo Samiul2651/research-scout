@@ -12,6 +12,7 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options) : D
     public DbSet<ApiCacheEntity> ApiCache => Set<ApiCacheEntity>();
     public DbSet<PaperEntity> Papers => Set<PaperEntity>();
     public DbSet<ChunkEntity> Chunks => Set<ChunkEntity>();
+    public DbSet<EmailDraftEntity> EmailDrafts => Set<EmailDraftEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +77,15 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options) : D
             e.Property(c => c.PaperId).HasMaxLength(64);
             e.HasIndex(c => new { c.PaperId, c.Index }).IsUnique();
             e.HasOne<PaperEntity>().WithMany().HasForeignKey(c => c.PaperId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EmailDraftEntity>(e =>
+        {
+            e.ToTable("email_drafts");
+            e.HasKey(d => d.Id);
+            e.Property(d => d.AuthorId).HasMaxLength(64);
+            e.Property(d => d.Subject).HasMaxLength(300);
+            e.HasIndex(d => d.CreatedAt);
         });
     }
 }

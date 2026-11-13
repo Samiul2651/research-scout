@@ -33,3 +33,19 @@ public sealed class ChunkEntity
 
     public required string Text { get; set; }
 }
+
+/// <summary>An outreach email the agent drafted and a human approved (table: email_drafts). Never sent automatically.</summary>
+public sealed class EmailDraftEntity
+{
+    public Guid Id { get; set; }
+    public Guid? RunId { get; set; }
+    public required string AuthorId { get; set; }
+    public required string ProfessorName { get; set; }
+    public required string Subject { get; set; }
+    public required string Body { get; set; }
+
+    /// <summary>Comma-separated paper ids the email cites (each checked against the professor's papers).</summary>
+    public required string CitedPaperIds { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
+}

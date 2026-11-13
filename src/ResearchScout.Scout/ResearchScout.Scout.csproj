@@ -4,6 +4,12 @@
     <ProjectReference Include="..\ResearchScout.Harness\ResearchScout.Harness.csproj" />
     <ProjectReference Include="..\ResearchScout.Papers\ResearchScout.Papers.csproj" />
     <ProjectReference Include="..\ResearchScout.Infra\ResearchScout.Infra.csproj" />
+    <ProjectReference Include="..\ResearchScout.Llm\ResearchScout.Llm.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="11.0.0" />
+    <PackageReference Include="System.Numerics.Tensors" Version="11.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

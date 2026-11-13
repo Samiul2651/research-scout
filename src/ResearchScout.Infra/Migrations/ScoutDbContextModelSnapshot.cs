@@ -119,6 +119,57 @@ namespace ResearchScout.Infra.Migrations
                     b.ToTable("daily_spend", (string)null);
                 });
 
+            modelBuilder.Entity("ResearchScout.Infra.EmailDraftEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AuthorId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<string>("CitedPaperIds")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("cited_paper_ids");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ProfessorName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("professor_name");
+
+                    b.Property<Guid?>("RunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("run_id");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("subject");
+
+                    b.HasKey("Id")
+                        .HasName("pk_email_drafts");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_email_drafts_created_at");
+
+                    b.ToTable("email_drafts", (string)null);
+                });
+
             modelBuilder.Entity("ResearchScout.Infra.PaperEntity", b =>
                 {
                     b.Property<string>("Id")

@@ -14,5 +14,6 @@
     <Project Path="tests/ResearchScout.Infra.Tests/ResearchScout.Infra.Tests.csproj" />
     <Project Path="tests/ResearchScout.Llm.Tests/ResearchScout.Llm.Tests.csproj" />
     <Project Path="tests/ResearchScout.Papers.Tests/ResearchScout.Papers.Tests.csproj" />
+    <Project Path="tests/ResearchScout.Scout.Tests/ResearchScout.Scout.Tests.csproj" />
   </Folder>
 </Solution>

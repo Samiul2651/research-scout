@@ -6,7 +6,9 @@
     <!-- ...except rules that fight normal test style:
          CA1707: underscores in test names (Method_Condition_Result)
          CA1515: public test classes (xUnit needs them public)
-         CA2007: ConfigureAwait in tests (no sync context in xUnit) -->
-    <NoWarn>$(NoWarn);CA1707;CA1515;CA2007</NoWarn>
+         CA2007: ConfigureAwait in tests (no sync context in xUnit)
+         CA1861: inline array literals as test inputs
+         CA1305: culture-specific formatting of test data -->
+    <NoWarn>$(NoWarn);CA1707;CA1515;CA2007;CA1861;CA1305</NoWarn>
   </PropertyGroup>
 </Project>

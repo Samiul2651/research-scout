@@ -24,6 +24,7 @@
   <ItemGroup>
     <!-- One source of truth for the model list: the Api's appsettings.json. -->
     <Content Include="..\ResearchScout.Api\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\profile.md" Link="profile.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

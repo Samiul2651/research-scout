@@ -30,7 +30,7 @@ internal sealed class RoutedHandler : HttpMessageHandler
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        var url = request.RequestUri!.ToString();
+        var url = request.RequestUri!.AbsoluteUri; // keeps %20 etc. (ToString would unescape)
         var body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
         Calls.Add((request.Method.Method, url, body));
 

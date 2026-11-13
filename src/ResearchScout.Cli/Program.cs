@@ -5,10 +5,12 @@ using ResearchScout.Cli;
 using ResearchScout.Harness;
 using ResearchScout.Infra;
 using ResearchScout.Llm;
+using ResearchScout.Scout;
 
 // scout models
 // scout chat "question" [--model provider/model] [--max-steps 12] [--max-cost 0.05]
 // scout runs | scout trace <runId> | scout db migrate      (need DATABASE_URL)
+// scout ask "question" | scout ingest <paperId> | scout search "query"   (need DATABASE_URL + VOYAGE_API_KEY)
 
 var envFile = DotEnv.Load();
 
@@ -39,6 +41,18 @@ if (args[0] is "runs" or "trace" or "db")
     }
 
     return await TraceCommands.RunAsync(args, dbFactory);
+}
+
+if (args[0] is "ask" or "ingest" or "search")
+{
+    if (dbFactory is null)
+    {
+        Console.Error.WriteLine("Set DATABASE_URL first (e.g. in .env). Local dev: start Postgres and Qdrant with 'docker compose up -d'.");
+        return 1;
+    }
+
+    using var services = new ScoutServices(ScoutSettings.FromEnvironment(config), llmOptions, apiKeys);
+    return await ScoutCommands.RunAsync(args, services);
 }
 
 if (catalog.Available.Count == 0)
@@ -208,6 +222,9 @@ static void PrintHelp()
 
           scout models                       List models you can use (needs API keys)
           scout chat "question" [options]    Run the agent loop with demo tools (time, calculator)
+          scout ask "question" [--model p/m] Ask Research Scout (papers + professors)
+          scout ingest <paperId>             Ingest a paper, e.g. arXiv:2106.15928
+          scout search "query"               Search ingested papers (no LLM)
           scout runs                         List recent runs            (needs DATABASE_URL)
           scout trace <runId>                Print a run step by step    (needs DATABASE_URL)
           scout db migrate                   Create/update the database tables
@@ -219,5 +236,6 @@ static void PrintHelp()
 
         API keys are read from environment variables or a .env file:
           ANTHROPIC_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY, OPENAI_API_KEY
+          DATABASE_URL, VOYAGE_API_KEY, QDRANT_URL (+ QDRANT_API_KEY), SEMANTIC_SCHOLAR_API_KEY (optional)
         """);
 }

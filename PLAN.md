@@ -120,9 +120,9 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 - [x] **T11** BM25 index (built from `chunks` table on startup) + `HybridSearch` with reciprocal rank fusion.
 
 ### Sunday — features, eval, web page
-- [ ] **T12** Wrap the tools in the table above as `ITool` classes.
-- [ ] **T13** `FitScorer` + `score_fit` tool.
-- [ ] **T14** System prompt: answers must cite `[paper, page]` for each claim; say "not found" instead of guessing.
+- [x] **T12** Wrap the tools in the table above as `ITool` classes.
+- [x] **T13** `FitScorer` + `score_fit` tool.
+- [x] **T14** System prompt: answers must cite `[paper, page]` for each claim; say "not found" instead of guessing.
 - [ ] **T15** Streaming via `IChatClient.GetStreamingResponseAsync` in the loop + SSE endpoint `POST /ask`.
 - [ ] **T16** Daily $ cap in `Budget` (uses `daily_spend` table, atomic update) + web `IApprovalGate` (SSE event + approve/reject endpoints, 5-min timeout) + admin endpoints `GET/PUT /admin/llm` (list providers/models, set current), protected by `ADMIN_PASSWORD` (constant-time compare, rate-limited).
 - [ ] **T17** Web page in `Api/wwwroot` (plain HTML + JS, no framework): ask box, streamed answer, citation links, step list, approve/reject buttons, "today's demo budget used" bar, current model label, and an admin panel (password) with provider + model dropdowns. Designer bot makes the mockup first.
