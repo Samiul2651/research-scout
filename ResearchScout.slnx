@@ -11,6 +11,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ResearchScout.Harness.Tests/ResearchScout.Harness.Tests.csproj" />
+    <Project Path="tests/ResearchScout.Infra.Tests/ResearchScout.Infra.Tests.csproj" />
     <Project Path="tests/ResearchScout.Llm.Tests/ResearchScout.Llm.Tests.csproj" />
   </Folder>
 </Solution>

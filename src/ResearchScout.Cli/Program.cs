@@ -3,10 +3,12 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using ResearchScout.Cli;
 using ResearchScout.Harness;
+using ResearchScout.Infra;
 using ResearchScout.Llm;
 
 // scout models
 // scout chat "question" [--model provider/model] [--max-steps 12] [--max-cost 0.05]
+// scout runs | scout trace <runId> | scout db migrate      (need DATABASE_URL)
 
 var envFile = DotEnv.Load();
 
@@ -18,12 +20,25 @@ var config = new ConfigurationBuilder()
 var llmOptions = config.GetSection(LlmOptions.SectionName).Get<LlmOptions>() ?? new LlmOptions();
 var apiKeys = LlmProviders.ApiKeysFromEnvironment();
 var catalog = new ModelCatalog(llmOptions, apiKeys);
-var selector = new LlmSelector(catalog, new InMemoryLlmSettingsStore());
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var dbFactory = string.IsNullOrWhiteSpace(databaseUrl) ? null : ScoutDb.CreateFactory(databaseUrl);
+var selector = new LlmSelector(catalog, dbFactory is null ? new InMemoryLlmSettingsStore() : new PostgresLlmSettingsStore(dbFactory));
 
 if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
 {
     PrintHelp();
     return 0;
+}
+
+if (args[0] is "runs" or "trace" or "db")
+{
+    if (dbFactory is null)
+    {
+        Console.Error.WriteLine("Set DATABASE_URL first (e.g. in .env). Local dev: start Postgres with 'docker compose up -d'.");
+        return 1;
+    }
+
+    return await TraceCommands.RunAsync(args, dbFactory);
 }
 
 if (catalog.Available.Count == 0)
@@ -121,7 +136,13 @@ async Task<int> RunChatAsync(string[] chatArgs)
     };
 
     using var chat = new SwitchableChatClient(selector, new ProviderChatClientFactory(llmOptions, apiKeys));
-    var loop = new AgentLoop(chat, DemoTools.Registry(), new CatalogCostCalculator(catalog), ProviderErrorClassifier.CreateRetryPolicy());
+    var loop = new AgentLoop(chat, DemoTools.Registry(), new AgentLoopServices
+    {
+        CostCalculator = new CatalogCostCalculator(catalog),
+        RetryPolicy = ProviderErrorClassifier.CreateRetryPolicy(),
+        Observer = dbFactory is null ? null : new PostgresTraceStore(dbFactory),
+        ApprovalGate = new ConsoleApprovalGate(),
+    });
 
     var runOptions = new AgentRunOptions
     {
@@ -175,6 +196,8 @@ async Task<int> RunChatAsync(string[] chatArgs)
         Console.WriteLine(result.StopReason);
     }
 
+    Console.WriteLine(dbFactory is null ? "(trace not saved: DATABASE_URL not set)" : $"Trace: scout trace {result.RunId}");
+
     return result.Status == AgentRunStatus.Completed ? 0 : 2;
 }
 
@@ -185,6 +208,9 @@ static void PrintHelp()
 
           scout models                       List models you can use (needs API keys)
           scout chat "question" [options]    Run the agent loop with demo tools (time, calculator)
+          scout runs                         List recent runs            (needs DATABASE_URL)
+          scout trace <runId>                Print a run step by step    (needs DATABASE_URL)
+          scout db migrate                   Create/update the database tables
 
         Options for chat:
           --model provider/model   e.g. gemini/gemini-3.5-flash-lite (default: the configured default)

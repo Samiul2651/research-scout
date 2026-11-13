@@ -11,6 +11,27 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    services:
+      # Real Postgres for the Infra tests (traces, daily spend, settings).
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: scout
+          POSTGRES_PASSWORD: scout_ci
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scout"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://scout:scout_ci@localhost:5432/postgres
+      DOTNET_NOLOGO: true
+
     steps:
       - uses: actions/checkout@v4
 

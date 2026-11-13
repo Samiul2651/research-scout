@@ -24,8 +24,34 @@ internal sealed class ScriptedChatClient(params object[] script) : IChatClient
         return next is Exception ex ? Task.FromException<ChatResponse>(ex) : Task.FromResult((ChatResponse)next);
     }
 
-    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
+    /// <summary>
+    /// Streams the next scripted reply as updates. A <see cref="StreamFailure"/> entry streams some text, then throws.
+    /// </summary>
+    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+        IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        Requests.Add([.. messages]);
+        Options.Add(options);
+        var next = _script.Count > 0 ? _script.Dequeue() : throw new InvalidOperationException("Script ran out of replies.");
+        await Task.Yield();
+
+        switch (next)
+        {
+            case StreamFailure failure:
+                yield return new ChatResponseUpdate(ChatRole.Assistant, failure.TextBeforeFailure);
+                throw failure.Error;
+            case Exception ex:
+                throw ex;
+            default:
+                foreach (var update in ((ChatResponse)next).ToChatResponseUpdates())
+                {
+                    yield return update;
+                }
+
+                break;
+        }
+    }
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
@@ -93,4 +119,59 @@ internal static class TestRetry
             return Task.CompletedTask;
         },
     };
+}
+
+/// <summary>Script entry: stream this text, then fail with this error.</summary>
+internal sealed record StreamFailure(string TextBeforeFailure, Exception Error);
+
+/// <summary>Records every observer event as a short string.</summary>
+internal sealed class RecordingObserver : IAgentObserver
+{
+    public List<string> Events { get; } = [];
+
+    public ValueTask OnRunStartedAsync(AgentRunContext run, CancellationToken cancellationToken) => Log("start");
+
+    public ValueTask OnTextDeltaAsync(AgentRunContext run, string text, CancellationToken cancellationToken) => Log("text:" + text);
+
+    public ValueTask OnToolStartedAsync(AgentRunContext run, int stepNumber, string toolName, string inputJson, CancellationToken cancellationToken) =>
+        Log($"tool:{toolName}");
+
+    public ValueTask OnStepCompletedAsync(AgentRunContext run, AgentStep completedStep, CancellationToken cancellationToken) =>
+        Log($"step:{completedStep.Number}");
+
+    public ValueTask OnRunFinishedAsync(AgentRunContext run, AgentRunResult result, CancellationToken cancellationToken) =>
+        Log($"finish:{result.Status}");
+
+    private ValueTask Log(string e)
+    {
+        Events.Add(e);
+        return ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>Approves or rejects by a fixed rule and records requests.</summary>
+internal sealed class RecordingApprovalGate(bool approve, string? reason = null) : IApprovalGate
+{
+    public List<ApprovalRequest> Requests { get; } = [];
+
+    public Task<ApprovalDecision> RequestAsync(ApprovalRequest request, CancellationToken cancellationToken)
+    {
+        Requests.Add(request);
+        return Task.FromResult(approve ? ApprovalDecision.Approve : ApprovalDecision.Reject(reason));
+    }
+}
+
+/// <summary>In-memory shared cap.</summary>
+internal sealed class FakeSpendGuard(decimal cap) : ISpendGuard
+{
+    public decimal Spent { get; private set; }
+
+    public Task<string?> CheckAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Spent >= cap ? $"Daily limit of ${cap} reached." : null);
+
+    public Task RecordAsync(decimal costUsd, CancellationToken cancellationToken)
+    {
+        Spent += costUsd;
+        return Task.CompletedTask;
+    }
 }

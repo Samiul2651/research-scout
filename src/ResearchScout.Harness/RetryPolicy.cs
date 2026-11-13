@@ -30,8 +30,14 @@ public sealed class RetryPolicy
     /// <summary>Random factor source for jitter, 0.0-1.0. Tests replace it to get fixed waits.</summary>
     public Func<double> Random { get; init; } = System.Random.Shared.NextDouble;
 
-    /// <summary>Runs <paramref name="action"/>, retrying transient failures. Returns the result and how many tries it took.</summary>
-    public async Task<(T Result, int Attempts)> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+    /// <summary>
+    /// Runs <paramref name="action"/>, retrying transient failures. Returns the result and how many tries it took.
+    /// <paramref name="canRetry"/> can veto a retry (for example after streamed text was already shown).
+    /// </summary>
+    public async Task<(T Result, int Attempts)> ExecuteAsync<T>(
+        Func<CancellationToken, Task<T>> action,
+        CancellationToken cancellationToken,
+        Func<bool>? canRetry = null)
     {
         ArgumentNullException.ThrowIfNull(action);
 
@@ -41,7 +47,7 @@ public sealed class RetryPolicy
             {
                 return (await action(cancellationToken).ConfigureAwait(false), attempt);
             }
-            catch (Exception ex) when (attempt < MaxAttempts && !cancellationToken.IsCancellationRequested && IsTransient(ex))
+            catch (Exception ex) when (attempt < MaxAttempts && !cancellationToken.IsCancellationRequested && (canRetry?.Invoke() ?? true) && IsTransient(ex))
             {
                 await Delay(DelayFor(attempt), cancellationToken).ConfigureAwait(false);
             }
