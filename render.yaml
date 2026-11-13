@@ -1,0 +1,37 @@
+# Render blueprint (https://render.com/docs/blueprint-spec).
+# New > Blueprint > pick this repo. Secrets marked "sync: false" are asked for once in the dashboard.
+# Deploys are triggered by GitHub Actions after tests pass (deploy hook), so autoDeploy is off.
+services:
+  - type: web
+    name: research-scout
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      # Supabase: use the "Session pooler" connection string (IPv4). Render's free tier cannot reach IPv6-only direct connections.
+      - key: DATABASE_URL
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: SEMANTIC_SCHOLAR_API_KEY
+        sync: false
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: DAILY_SPEND_CAP_USD
+        value: "0.50"
+      - key: MAX_CONCURRENT_RUNS
+        value: "3"
+      - key: ALLOWED_ORIGINS
+        sync: false

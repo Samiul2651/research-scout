@@ -1,5 +1,4 @@
-# Build + test on every push and PR.
-# The Render deploy step is added later in task D4.
+# Build + test on every push and PR. On main, after tests pass: build the Docker image, then deploy to Render.
 name: CI
 
 on:
@@ -55,3 +54,31 @@ jobs:
 
       - name: Test
         run: dotnet test ResearchScout.slnx --no-build -c Release --verbosity normal
+
+  docker:
+    # Proves the Dockerfile still builds (the free host builds the same file).
+    needs: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t research-scout:ci .
+
+  deploy:
+    # Only on main, only after tests and the image build pass.
+    needs: [build-test, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL secret not set; skipping deploy."
+            exit 0
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL" > /dev/null
+          echo "Deploy triggered."

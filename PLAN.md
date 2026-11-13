@@ -129,12 +129,12 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 - [x] **T18** `Eval`: 15 hand-written questions over 5 papers → check the cited page holds the answer (citation accuracy); 1 university → check my known good-fit professors land in the top 5.
 
 ### Weekday evening — deploy
-- [ ] **D1** Create Supabase project + Qdrant Cloud free cluster; run EF migration against Supabase; ingest the 5 demo papers + 1 university's professors into the live stores.
-- [ ] **D2** `Dockerfile` (multi-stage, .NET 10 runtime image) + `GET /health` (no DB call).
-- [ ] **D3** Production setup: CORS (only my portfolio domain + the Render URL), rate limiting on `/ask` (ASP.NET built-in limiter, as a basic floor), HTTPS-only, no keys in logs.
-- [ ] **D4** GitHub Actions: build + run tests on every PR; on push to `main`, call the Render deploy hook.
-- [ ] **D5** Create the Render free web service from the repo; set env vars; smoke test both "done means" questions on the live URL.
-- [ ] **T19** README: problem, live demo link, architecture diagram, harness design, eval numbers, demo GIF, note about ~1 min cold start.
+- [ ] **D1** _(needs your accounts — steps in README "Deploy")_ Create Supabase project + Qdrant Cloud free cluster; run EF migration against Supabase; ingest the 5 demo papers + 1 university's professors into the live stores.
+- [x] **D2** `Dockerfile` (multi-stage, .NET 10 runtime image) + `GET /health` (no DB call).
+- [x] **D3** Production setup: CORS (only my portfolio domain + the Render URL), rate limiting on `/ask` (ASP.NET built-in limiter, as a basic floor), HTTPS-only, no keys in logs.
+- [x] **D4** GitHub Actions: build + run tests on every PR; on push to `main`, call the Render deploy hook.
+- [ ] **D5** _(needs your accounts — steps in README "Deploy")_ Create the Render free web service from the repo; set env vars; smoke test both "done means" questions on the live URL.
+- [x] **T19** README: problem, live demo link, architecture diagram, harness design, eval numbers, demo GIF, note about ~1 min cold start.
 
 ### Stretch (only if time is left)
 - [ ] Parallel tool calls in one step
