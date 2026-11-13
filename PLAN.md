@@ -114,10 +114,10 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 - [x] **T5** `Budget` (per-run limits) + retry with backoff.
 - [x] **T6** `Infra`: EF Core DbContext + first migration (tables: `runs`, `steps`, `professors`, `papers`, `chunks`, `api_cache`, `daily_spend`, `app_settings`). `PostgresLlmSettingsStore`, `PostgresTraceStore` + `scout trace <runId>`.
 - [x] **T7** `IApprovalGate` + console implementation.
-- [ ] **T8** `PaperFetcher`: Semantic Scholar author search + recent papers; arXiv PDF download. Cache API responses in `api_cache`.
-- [ ] **T9** `PdfChunker` with PdfPig: ~500-token chunks, 50 overlap, keep page number.
-- [ ] **T10** `VoyageEmbedder` (batched calls) + Qdrant upsert/search. Collection vector size comes from config, matching the Voyage model.
-- [ ] **T11** BM25 index (built from `chunks` table on startup) + `HybridSearch` with reciprocal rank fusion.
+- [x] **T8** `PaperFetcher`: Semantic Scholar author search + recent papers; arXiv PDF download. Cache API responses in `api_cache`.
+- [x] **T9** `PdfChunker` with PdfPig: ~500-token chunks, 50 overlap, keep page number. Chunks never cross a page boundary, so every chunk has exactly one page and citations are exact.
+- [x] **T10** `VoyageEmbedder` (batched calls) + Qdrant upsert/search. Collection vector size comes from config, matching the Voyage model.
+- [x] **T11** BM25 index (built from `chunks` table on startup) + `HybridSearch` with reciprocal rank fusion.
 
 ### Sunday — features, eval, web page
 - [ ] **T12** Wrap the tools in the table above as `ITool` classes.
