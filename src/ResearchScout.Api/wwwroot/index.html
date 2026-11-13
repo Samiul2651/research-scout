@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Scout</title>
+<meta name="description" content="Ask research papers questions with page citations, and find professors whose recent work fits your interests.">
+<style>
+  :root {
+    --bg: #f7f6f2; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a65; --line: #e4e2db;
+    --accent: #2f5d50; --accent-soft: #e5efe9; --warn: #9a4b14; --warn-soft: #fbefe3; --err: #a12a2a;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151614; --card: #1e1f1c; --ink: #ecebe6; --muted: #a09e96; --line: #33342f;
+            --accent: #8cc7ae; --accent-soft: #23332c; --warn: #f0b27a; --warn-soft: #3a2a1c; --err: #ff8a8a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; justify-content: space-between; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+  .tag { font-size: .8rem; color: var(--muted); }
+  .sub { color: var(--muted); margin: 6px 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  textarea { width: 100%; min-height: 84px; resize: vertical; padding: 12px; border-radius: 8px; border: 1px solid var(--line);
+             background: var(--bg); color: var(--ink); font: inherit; }
+  textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  button { font: inherit; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--card);
+           padding: 8px 16px; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .chip { font-size: .85rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+          color: var(--ink); cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .budget { min-width: 220px; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  #answer { white-space: normal; }
+  #answer p { margin: 0 0 .7em; }
+  #answer ul { margin: 0 0 .7em 1.2em; padding: 0; }
+  .cite { font-family: var(--mono); font-size: .78em; background: var(--accent-soft); color: var(--accent);
+          padding: 1px 6px; border-radius: 4px; text-decoration: none; white-space: nowrap; }
+  .steps { font-size: .88rem; color: var(--muted); }
+  .steps li { margin-bottom: 6px; list-style: none; }
+  .steps ul { padding: 0; margin: 0; }
+  .mono { font-family: var(--mono); font-size: .82rem; word-break: break-all; }
+  .err { color: var(--err); }
+  .approval { border-color: var(--warn); background: var(--warn-soft); }
+  .approval h3 { margin: 0 0 8px; font-size: 1rem; color: var(--warn); }
+  .approval pre { white-space: pre-wrap; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px;
+                  font: .9rem/1.45 system-ui, sans-serif; max-height: 320px; overflow: auto; }
+  input[type=text], input[type=password], select { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line);
+                  background: var(--bg); color: var(--ink); }
+  details summary { cursor: pointer; color: var(--muted); }
+  .done { font-size: .85rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+  .hidden { display: none; }
+  footer { font-size: .8rem; color: var(--muted); margin-top: 32px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Research Scout</h1>
+      <div class="tag">Model: <span id="model">…</span></div>
+    </div>
+    <div class="budget tag">
+      Today's demo budget: <span id="spent">…</span>
+      <div class="bar" aria-hidden="true"><div id="barfill"></div></div>
+    </div>
+  </header>
+  <p class="sub">Ask questions about research papers and get answers with page citations, or find professors whose recent work fits AI for software engineering. Runs on my own agent harness in C#.</p>
+
+  <section class="card">
+    <label for="q" class="tag">Your question</label>
+    <textarea id="q" maxlength="1000" placeholder="e.g. Ingest arXiv:2106.15928 and tell me how it evaluates retrieval"></textarea>
+    <div class="row">
+      <button id="ask">Ask</button>
+      <button id="stop" class="ghost hidden">Stop</button>
+      <span class="tag" id="hint">10 questions per hour per visitor.</span>
+    </div>
+    <div class="row" id="examples"></div>
+  </section>
+
+  <section class="card hidden" id="out">
+    <div id="answer"></div>
+    <div id="approvals"></div>
+    <details class="steps" id="stepsBox" open>
+      <summary>What the agent did</summary>
+      <ul id="steps"></ul>
+    </details>
+    <div class="done hidden" id="done"></div>
+  </section>
+
+  <details class="card">
+    <summary>Papers already ingested (<span id="paperCount">0</span>)</summary>
+    <ul id="papers" class="steps"></ul>
+  </details>
+
+  <details class="card" id="adminBox">
+    <summary>Admin: switch model</summary>
+    <div class="row">
+      <input type="password" id="pw" placeholder="Admin password" autocomplete="current-password">
+      <button class="ghost" id="loadAdmin">Load</button>
+    </div>
+    <div class="row hidden" id="adminForm">
+      <select id="modelSelect"></select>
+      <button id="saveModel">Use this model</button>
+      <span class="tag" id="adminMsg"></span>
+    </div>
+  </details>
+
+  <footer>
+    Built by Samiul · <a href="https://github.com/Samiul2651/research-scout">source on GitHub</a> ·
+    Free hosting: the first request after a quiet period can take about a minute.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const examples = [
+  "Ingest arXiv:2005.11401 and explain how it combines retrieval with generation.",
+  "Which professors at Memorial University of Newfoundland work on LLMs for code?",
+  "Search the ingested papers: how is retrieval quality evaluated?",
+];
+let controller = null;
+let answerText = "";
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Link for a citation tag: arXiv papers open the PDF at the cited page.
+function citeLink(paper, page) {
+  if (paper.toLowerCase().startsWith("arxiv:")) return `https://arxiv.org/pdf/${encodeURIComponent(paper.slice(6))}#page=${page}`;
+  return null;
+}
+
+// Very small markdown: paragraphs, "- " lists, **bold**, and [paper p.N] citation tags. Text is escaped first.
+function render(md) {
+  const html = [];
+  let list = null;
+  for (const raw of esc(md).split("\n")) {
+    const line = raw.trimEnd();
+    const item = /^\s*[-*] (.*)/.exec(line);
+    if (item) { (list ??= []).push(item[1]); continue; }
+    if (list) { html.push("<ul>" + list.map((i) => `<li>${inline(i)}</li>`).join("") + "</ul>"); list = null; }
+    if (line.trim()) html.push(`<p>${inline(line)}</p>`);
+  }
+  if (list) html.push("<ul>" + list.map((i) => `<li>${inline(i)}</li>`).join("") + "</ul>");
+  return html.join("");
+}
+function inline(s) {
+  return s
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([A-Za-z0-9]+:[^\s\]]+) p\.(\d+)\]/g, (m, paper, page) => {
+      const href = citeLink(paper, page);
+      return href ? `<a class="cite" href="${href}" target="_blank" rel="noopener">${paper} p.${page}</a>`
+                  : `<span class="cite">${paper} p.${page}</span>`;
+    });
+}
+
+async function loadStatus() {
+  try {
+    const s = await (await fetch("/status")).json();
+    $("model").textContent = s.model;
+    $("spent").textContent = `$${s.dailySpentUsd.toFixed(3)} of $${s.dailyCapUsd.toFixed(2)}`;
+    $("barfill").style.width = Math.min(100, (100 * s.dailySpentUsd) / s.dailyCapUsd) + "%";
+  } catch { $("model").textContent = "unavailable"; }
+}
+
+async function loadPapers() {
+  try {
+    const papers = await (await fetch("/papers")).json();
+    $("paperCount").textContent = papers.length;
+    $("papers").innerHTML = papers.map((p) =>
+      `<li><span class="mono">${esc(p.id)}</span> — ${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a>` : esc(p.title)}${p.year ? ` (${p.year})` : ""}</li>`).join("");
+  } catch { /* optional panel */ }
+}
+
+function addStep(html) {
+  const li = document.createElement("li");
+  li.innerHTML = html;
+  $("steps").appendChild(li);
+  return li;
+}
+
+function showApproval(ev) {
+  let input = {};
+  try { input = JSON.parse(ev.input); } catch { input = { raw: ev.input }; }
+  const card = document.createElement("div");
+  card.className = "card approval";
+  const body = ev.tool === "draft_email"
+    ? `To: ${esc(input.professorName ?? "")}\nSubject: ${esc(input.subject ?? "")}\n\n${esc(input.body ?? "")}\n\nCites: ${esc((input.citedPaperIds ?? []).join(", "))}`
+    : esc(JSON.stringify(input, null, 2));
+  card.innerHTML = `
+    <h3>Approve "${esc(ev.tool)}"?</h3>
+    <pre>${body}</pre>
+    <div class="row">
+      <button data-a="yes">Approve</button>
+      <input type="text" placeholder="Reason (optional)" data-r>
+      <button class="ghost" data-a="no">Reject</button>
+      <span class="tag">Expires in ${Math.round(ev.expiresInSeconds / 60)} min. Drafts are saved, never sent.</span>
+    </div>`;
+  card.querySelectorAll("button").forEach((b) => b.addEventListener("click", async () => {
+    const approve = b.dataset.a === "yes";
+    card.querySelectorAll("button").forEach((x) => (x.disabled = true));
+    const reason = card.querySelector("[data-r]").value || null;
+    const res = await fetch(`/runs/${ev.runId}/approvals/${encodeURIComponent(ev.callId)}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approve, reason }),
+    });
+    card.querySelector("h3").textContent = res.ok ? (approve ? "Approved" : "Rejected") : "Too late: this request expired.";
+  }));
+  $("approvals").appendChild(card);
+}
+
+function handle(type, ev) {
+  switch (type) {
+    case "run":
+      addStep(`Started with <strong>${esc(ev.model)}</strong>`);
+      break;
+    case "text":
+      answerText += ev.delta;
+      $("answer").innerHTML = render(answerText);
+      break;
+    case "tool": {
+      const input = ev.input.length > 140 ? ev.input.slice(0, 140) + "…" : ev.input;
+      addStep(`→ <strong>${esc(ev.name)}</strong> <span class="mono">${esc(input)}</span>`);
+      break;
+    }
+    case "step":
+      addStep(`Step ${ev.number}: ${ev.inputTokens} in / ${ev.outputTokens} out tokens · $${Number(ev.costUsd).toFixed(5)} · ${(ev.ms / 1000).toFixed(1)}s` +
+        ev.tools.filter((t) => t.isError).map((t) => `<br><span class="err">✗ ${esc(t.name)}: ${esc(t.output)}</span>`).join(""));
+      // Text streamed in this step was "thinking out loud" before a tool call; the final step's text is the answer.
+      if (ev.tools.length) { answerText = ""; }
+      break;
+    case "approval":
+      showApproval(ev);
+      break;
+    case "done":
+      if (ev.finalText) $("answer").innerHTML = render(ev.finalText);
+      $("done").classList.remove("hidden");
+      $("done").innerHTML = `${esc(ev.status)}${ev.stopReason ? ` — ${esc(ev.stopReason)}` : ""} · ` +
+        `${ev.inputTokens + ev.outputTokens} tokens · $${Number(ev.costUsd).toFixed(5)} · <a href="/runs/${ev.runId}/trace" target="_blank">trace</a>`;
+      break;
+    case "error":
+      $("answer").innerHTML += `<p class="err">${esc(ev.message)}</p>`;
+      break;
+  }
+}
+
+async function ask() {
+  const question = $("q").value.trim();
+  if (!question) return;
+  answerText = "";
+  $("out").classList.remove("hidden");
+  $("answer").innerHTML = `<p class="tag">Thinking…</p>`;
+  $("steps").innerHTML = ""; $("approvals").innerHTML = ""; $("done").classList.add("hidden");
+  $("ask").disabled = true; $("stop").classList.remove("hidden");
+  controller = new AbortController();
+
+  try {
+    const res = await fetch("/ask", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }), signal: controller.signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      $("answer").innerHTML = `<p class="err">${esc(err.error ?? (res.status === 429 ? "Too many questions this hour. Please try later." : `Error ${res.status}`))}</p>`;
+      return;
+    }
+
+    // Read Server-Sent Events from the response body.
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sep;
+      while ((sep = buffer.indexOf("\n\n")) >= 0) {
+        const block = buffer.slice(0, sep); buffer = buffer.slice(sep + 2);
+        let type = "message", data = "";
+        for (const line of block.split("\n")) {
+          if (line.startsWith("event:")) type = line.slice(6).trim();
+          else if (line.startsWith("data:")) data += line.slice(5).trim();
+        }
+        if (data) { try { handle(type, JSON.parse(data)); } catch (e) { console.error(e); } }
+      }
+    }
+  } catch (e) {
+    if (e.name !== "AbortError") $("answer").innerHTML += `<p class="err">Connection lost.</p>`;
+  } finally {
+    $("ask").disabled = false; $("stop").classList.add("hidden");
+    loadStatus(); loadPapers();
+  }
+}
+
+// ----- admin -----
+function getPw() { return $("pw").value; }
+async function loadAdmin() {
+  $("adminMsg").textContent = "";
+  const res = await fetch("/admin/llm", { headers: { "X-Admin-Password": getPw() } });
+  if (!res.ok) { $("adminForm").classList.remove("hidden"); $("adminMsg").textContent = res.status === 401 ? "Wrong password." : `Error ${res.status}`; return; }
+  const data = await res.json();
+  $("modelSelect").innerHTML = data.available.map((m) =>
+    `<option value="${esc(m.provider)}|${esc(m.modelId)}" ${m.provider === data.current.provider && m.modelId === data.current.modelId ? "selected" : ""}>` +
+    `${esc(m.displayName)} — $${m.inputUsdPerMillion}/$${m.outputUsdPerMillion} per M</option>`).join("");
+  $("adminForm").classList.remove("hidden");
+}
+async function saveModel() {
+  const [provider, modelId] = $("modelSelect").value.split("|");
+  const res = await fetch("/admin/llm", {
+    method: "PUT", headers: { "Content-Type": "application/json", "X-Admin-Password": getPw() },
+    body: JSON.stringify({ provider, modelId }),
+  });
+  $("adminMsg").textContent = res.ok ? "Saved. New questions use this model." : `Error ${res.status}`;
+  loadStatus();
+}
+
+$("ask").addEventListener("click", ask);
+$("stop").addEventListener("click", () => controller?.abort());
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) ask(); });
+$("loadAdmin").addEventListener("click", loadAdmin);
+$("saveModel").addEventListener("click", saveModel);
+for (const ex of examples) {
+  const b = document.createElement("button");
+  b.className = "chip"; b.textContent = ex;
+  b.addEventListener("click", () => { $("q").value = ex; $("q").focus(); });
+  $("examples").appendChild(b);
+}
+loadStatus(); loadPapers();
+</script>
+</body>
+</html>

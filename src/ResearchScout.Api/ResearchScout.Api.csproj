@@ -14,4 +14,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\profile.md" Link="profile.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

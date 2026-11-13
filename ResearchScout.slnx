@@ -10,6 +10,7 @@
     <Project Path="src/ResearchScout.Scout/ResearchScout.Scout.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ResearchScout.Api.Tests/ResearchScout.Api.Tests.csproj" />
     <Project Path="tests/ResearchScout.Harness.Tests/ResearchScout.Harness.Tests.csproj" />
     <Project Path="tests/ResearchScout.Infra.Tests/ResearchScout.Infra.Tests.csproj" />
     <Project Path="tests/ResearchScout.Llm.Tests/ResearchScout.Llm.Tests.csproj" />

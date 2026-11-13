@@ -64,7 +64,14 @@ public sealed class ScoutServices : IDisposable
     private readonly HttpClient _voyageHttp;
     private readonly QdrantClient? _qdrant;
 
-    public ScoutServices(ScoutSettings settings, LlmOptions llmOptions, IReadOnlyDictionary<string, string> llmKeys)
+    /// <param name="chatClientFactory">Override for tests (default: real provider SDKs).</param>
+    /// <param name="embedder">Override for tests (default: Voyage, or an error if VOYAGE_API_KEY is missing).</param>
+    public ScoutServices(
+        ScoutSettings settings,
+        LlmOptions llmOptions,
+        IReadOnlyDictionary<string, string> llmKeys,
+        IChatClientFactory? chatClientFactory = null,
+        IEmbeddingGenerator<string, Embedding<float>>? embedder = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         Settings = settings;
@@ -75,7 +82,7 @@ public sealed class ScoutServices : IDisposable
         // LLM
         Catalog = new ModelCatalog(llmOptions, llmKeys);
         Selector = new LlmSelector(Catalog, new PostgresLlmSettingsStore(DbFactory));
-        Chat = new SwitchableChatClient(Selector, new ProviderChatClientFactory(llmOptions, llmKeys));
+        Chat = new SwitchableChatClient(Selector, chatClientFactory ?? new ProviderChatClientFactory(llmOptions, llmKeys));
 
         // HTTP clients share one connection pool; each has its own timeout.
         _scholarHttp = new HttpClient(_httpHandler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(30) };
@@ -84,9 +91,9 @@ public sealed class ScoutServices : IDisposable
 
         // Papers
         Scholar = new SemanticScholarClient(_scholarHttp, new PostgresApiCache(DbFactory), settings.SemanticScholarApiKey);
-        Embedder = settings.VoyageApiKey is null
+        Embedder = embedder ?? (settings.VoyageApiKey is null
             ? new MissingKeyEmbedder()
-            : new VoyageEmbeddingGenerator(_voyageHttp, settings.VoyageApiKey, settings.EmbeddingModel, settings.EmbeddingDimensions);
+            : new VoyageEmbeddingGenerator(_voyageHttp, settings.VoyageApiKey, settings.EmbeddingModel, settings.EmbeddingDimensions));
 
         if (settings.QdrantUrl is not null)
         {

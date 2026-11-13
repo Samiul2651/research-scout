@@ -123,9 +123,9 @@ My interest profile lives in `profile.md` (RAG, code intelligence, LLMs for SE, 
 - [x] **T12** Wrap the tools in the table above as `ITool` classes.
 - [x] **T13** `FitScorer` + `score_fit` tool.
 - [x] **T14** System prompt: answers must cite `[paper, page]` for each claim; say "not found" instead of guessing.
-- [ ] **T15** Streaming via `IChatClient.GetStreamingResponseAsync` in the loop + SSE endpoint `POST /ask`.
-- [ ] **T16** Daily $ cap in `Budget` (uses `daily_spend` table, atomic update) + web `IApprovalGate` (SSE event + approve/reject endpoints, 5-min timeout) + admin endpoints `GET/PUT /admin/llm` (list providers/models, set current), protected by `ADMIN_PASSWORD` (constant-time compare, rate-limited).
-- [ ] **T17** Web page in `Api/wwwroot` (plain HTML + JS, no framework): ask box, streamed answer, citation links, step list, approve/reject buttons, "today's demo budget used" bar, current model label, and an admin panel (password) with provider + model dropdowns. Designer bot makes the mockup first.
+- [x] **T15** Streaming via `IChatClient.GetStreamingResponseAsync` in the loop + SSE endpoint `POST /ask`.
+- [x] **T16** Daily $ cap in `Budget` (uses `daily_spend` table, atomic update) + web `IApprovalGate` (SSE event + approve/reject endpoints, 5-min timeout) + admin endpoints `GET/PUT /admin/llm` (list providers/models, set current), protected by `ADMIN_PASSWORD` (constant-time compare, rate-limited).
+- [x] **T17** Web page in `Api/wwwroot` (plain HTML + JS, no framework): ask box, streamed answer, citation links, step list, approve/reject buttons, "today's demo budget used" bar, current model label, and an admin panel (password) with provider + model dropdowns. Designer bot makes the mockup first.
 - [ ] **T18** `Eval`: 15 hand-written questions over 5 papers → check the cited page holds the answer (citation accuracy); 1 university → check my known good-fit professors land in the top 5.
 
 ### Weekday evening — deploy
