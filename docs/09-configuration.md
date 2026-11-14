@@ -39,7 +39,7 @@ If `QDRANT_URL` is empty, vectors are kept **in memory** and lost on restart. Th
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `SEMANTIC_SCHOLAR_API_KEY` | none | Raises Semantic Scholar's rate limit. **Needed in practice for professor matching.** Free at semanticscholar.org/product/api |
+| `SEMANTIC_SCHOLAR_API_KEY` | none | Optional. Gives your own Semantic Scholar rate limit. Without it the client uses the shared free pool: 1.1 s between requests and longer retries on 429. Free at semanticscholar.org/product/api |
 | `VOYAGE_FREE_TIER` | `false` (`true` in `render.yaml`) | Stay under Voyage's limits for accounts without a payment method (3 requests and 10K tokens per minute). See [Papers and retrieval](04-papers-and-retrieval.md#voyage-free-tier) |
 
 ### Live demo (API only)

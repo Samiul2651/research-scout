@@ -26,7 +26,7 @@ The model decides which tools to call and in what order. The tools are described
 
 - Semantic Scholar has affiliations for **only some authors**. An empty result does not mean nobody at that university works on the topic.
 - The best fix is to give it **names from the faculty page** (the `names` input). Names are looked up directly and matched exactly.
-- Without a `SEMANTIC_SCHOLAR_API_KEY`, the shared public rate limit is hit quickly (HTTP 429). Professor matching needs the key in practice. See [Troubleshooting](13-troubleshooting.md#semantic-scholar-429-too-many-requests).
+- It works **without an API key**, using Semantic Scholar's shared free pool. Requests are spaced 1.1 seconds apart and 429s are retried with longer waits, so a search can take a minute or two when the pool is busy. See [Troubleshooting](13-troubleshooting.md#semantic-scholar-429-too-many-requests).
 
 ## The fit score
 

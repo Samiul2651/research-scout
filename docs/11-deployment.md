@@ -31,7 +31,7 @@ Tables are created automatically on first start.
 
 - **Voyage:** dash.voyageai.com → API keys → `VOYAGE_API_KEY`. Without a payment method, set `VOYAGE_FREE_TIER=true`.
 - **At least one LLM key.** DeepSeek keys start with `sk-` and need a small balance.
-- **Semantic Scholar (recommended):** request a free key at semanticscholar.org/product/api → `SEMANTIC_SCHOLAR_API_KEY`. Professor matching needs it in practice.
+- **Semantic Scholar (optional):** works without a key on the shared free pool (slower when busy). A free key from semanticscholar.org/product/api → `SEMANTIC_SCHOLAR_API_KEY` gives your own limit.
 
 ## 4. Load the demo papers
 

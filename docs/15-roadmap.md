@@ -4,7 +4,7 @@
 
 | Item | Why |
 | --- | --- |
-| Add `SEMANTIC_SCHOLAR_API_KEY` on Render | Professor matching hits Semantic Scholar's shared rate limit without it |
+| Optional: add `SEMANTIC_SCHOLAR_API_KEY` on Render | Own rate limit instead of the shared free pool (faster professor searches) |
 | Fill `eval/professors.json` and run the ranking eval | Gives the "good-fit professors in top 5" number |
 | Check the evidence phrases in `eval/questions.json` against the PDFs | Some "wrong" citations may be answer-key mistakes |
 | Demo GIF in the README | Shows a question, streamed citations and an approval in a few seconds |

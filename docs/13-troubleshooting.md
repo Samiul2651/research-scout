@@ -9,7 +9,7 @@ Known errors and their fixes. Most of these came up during the first deployment 
 | [Voyage returned 429](#voyage-returned-429) | Voyage free-tier rate limit | `VOYAGE_FREE_TIER=true`, or add a payment method |
 | [ModelError: AuthenticationError](#modelerror-authentication-error) | Wrong or truncated LLM key | Create a new key, paste it with the copy button |
 | [Could not download the PDF](#could-not-download-the-pdf) | Publisher link blocked (403) or TLS failed | Fixed: arXiv PDFs are now used first |
-| [Semantic Scholar 429](#semantic-scholar-429-too-many-requests) | No Semantic Scholar key | Get a free key |
+| [Semantic Scholar 429](#semantic-scholar-429-too-many-requests) | Shared keyless rate limit busy | Retried automatically; ask again later, or add a free key |
 | [Every step costs $0.00000](#every-step-costs-000000) | Streaming dropped the model stamp | Fixed in Nov 2026 |
 | [Answers have no citations](#answers-have-no-citations) | Paper not loaded | Run ingest again |
 | [Database connection fails on Render](#database-connection-fails-on-render) | Direct (IPv6) Supabase URL | Use the Session pooler string |
@@ -62,9 +62,18 @@ Semantic Scholar's "open access" link pointed to a publisher site that blocks sc
 ✗ find_professors: Tool 'find_professors' failed: Semantic Scholar returned 429: {"message": "Too Many Requests ..."}
 ```
 
-Without a key, all users share one public rate limit. Professor matching makes many calls per question.
+Without a key, all users share one public rate limit, so 429s come in bursts. Professor matching makes several calls per question.
 
-**Fix:** request a free key at semanticscholar.org/product/api (approval can take a few days). Set `SEMANTIC_SCHOLAR_API_KEY` on Render and in `.env`.
+**What the client does about it (no key needed):**
+
+- Spaces requests at least 1.1 seconds apart.
+- Without a key, retries up to 6 times, waiting about 3, 6, 12, 24 and 30 seconds.
+- Honours the `Retry-After` header (up to 30 seconds).
+- Caches every answer for 7 days, so repeated questions don't call the API again.
+
+A professor search can therefore take a minute or two when the shared pool is busy. If it still fails, wait a few minutes and ask again.
+
+**Optional:** a free key (semanticscholar.org/product/api) gives your own limit. Set `SEMANTIC_SCHOLAR_API_KEY` on Render and in `.env`.
 
 Even with a key, `find_professors` can come back empty, because Semantic Scholar has affiliations for only some authors. Give it names from the faculty page.
 

@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using ResearchScout.Harness;
 using ResearchScout.Infra.Tests;
@@ -97,6 +99,45 @@ public class SemanticScholarClientTests
 
         Assert.Equal("RAG for Code", paper?.Title);
         Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task RequestGap_SpacesOutRequests()
+    {
+        var handler = new RoutedHandler().On("paper/p1", PaperJson).On("paper/p2", PaperJson);
+        var client = new SemanticScholarClient(new HttpClient(handler), new InMemoryApiCache(), retry: NoWait, requestGap: TimeSpan.FromMilliseconds(300));
+        var clock = Stopwatch.StartNew();
+
+        await client.GetPaperAsync("p1", default);
+        await client.GetPaperAsync("p2", default);
+
+        Assert.Equal(2, handler.Calls.Count);
+        Assert.True(clock.Elapsed >= TimeSpan.FromMilliseconds(280), $"took {clock.Elapsed.TotalMilliseconds} ms");
+    }
+
+    [Fact]
+    public async Task RateLimit_WithRetryAfter_WaitsThatLong()
+    {
+        var calls = 0;
+        var handler = new RoutedHandler().On("paper/abc123", _ =>
+        {
+            if (++calls == 1)
+            {
+                var slowDown = new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("slow down") };
+                slowDown.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromSeconds(1));
+                return slowDown;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(PaperJson) };
+        });
+        var clock = Stopwatch.StartNew();
+
+        // NoWait skips the retry policy's own delay, so any wait here comes from Retry-After.
+        var paper = await Client(handler).GetPaperAsync("abc123", default);
+
+        Assert.Equal("RAG for Code", paper?.Title);
+        Assert.Equal(2, calls);
+        Assert.True(clock.Elapsed >= TimeSpan.FromMilliseconds(950), $"took {clock.Elapsed.TotalMilliseconds} ms");
     }
 
     [Fact]

@@ -90,7 +90,9 @@ public sealed class ScoutServices : IDisposable
         _voyageHttp = new HttpClient(_httpHandler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(60) };
 
         // Papers
-        Scholar = new SemanticScholarClient(_scholarHttp, new PostgresApiCache(DbFactory), settings.SemanticScholarApiKey);
+        // About 1 request per second: the free (keyless) pool is shared by everyone, and keys are limited to 1 per second too.
+        Scholar = new SemanticScholarClient(
+            _scholarHttp, new PostgresApiCache(DbFactory), settings.SemanticScholarApiKey, requestGap: TimeSpan.FromSeconds(1.1));
         Embedder = embedder ?? (settings.VoyageApiKey is null
             ? new MissingKeyEmbedder()
             : new VoyageEmbeddingGenerator(_voyageHttp, settings.VoyageApiKey, settings.EmbeddingModel, settings.EmbeddingDimensions));

@@ -19,11 +19,21 @@ public sealed class SemanticScholarClient
     private const string PaperFields = "title,year,abstract,venue,authors,externalIds,openAccessPdf,url";
     private static readonly TimeSpan CacheAge = TimeSpan.FromDays(7);
 
+    /// <summary>Longest wait taken from a 429's Retry-After header before the retry policy's own wait.</summary>
+    private static readonly TimeSpan MaxRetryAfter = TimeSpan.FromSeconds(30);
+
     private readonly HttpClient _http;
     private readonly IApiCache _cache;
     private readonly RetryPolicy _retry;
+    private readonly TimeSpan _requestGap;
+    private readonly Lock _paceLock = new();
+    private DateTimeOffset _nextRequestAt = DateTimeOffset.MinValue;
 
-    public SemanticScholarClient(HttpClient http, IApiCache cache, string? apiKey = null, RetryPolicy? retry = null)
+    /// <param name="requestGap">
+    /// Smallest time between two requests sent to Semantic Scholar (cached answers don't count). Without an API key all
+    /// callers share one small pool, so bursts get 429s; ScoutServices passes about 1 second. Default: no spacing.
+    /// </param>
+    public SemanticScholarClient(HttpClient http, IApiCache cache, string? apiKey = null, RetryPolicy? retry = null, TimeSpan? requestGap = null)
     {
         ArgumentNullException.ThrowIfNull(http);
         _http = http;
@@ -35,8 +45,13 @@ public sealed class SemanticScholarClient
 
         _cache = cache;
 
-        // Unauthenticated callers share a small rate limit, so 429s happen: wait and retry.
-        _retry = retry ?? new RetryPolicy { MaxAttempts = 4, BaseDelay = TimeSpan.FromSeconds(2) };
+        // Unauthenticated callers share one small pool, so 429s come in bursts: wait longer and try more often.
+        // Without a key: about 3s, 6s, 12s, 24s, 30s between 6 tries. With a key: about 2s, 4s, 8s between 4 tries.
+        var hasKey = !string.IsNullOrWhiteSpace(apiKey);
+        _retry = retry ?? (hasKey
+            ? new RetryPolicy { MaxAttempts = 4, BaseDelay = TimeSpan.FromSeconds(2) }
+            : new RetryPolicy { MaxAttempts = 6, BaseDelay = TimeSpan.FromSeconds(3), MaxDelay = TimeSpan.FromSeconds(30) });
+        _requestGap = requestGap ?? TimeSpan.Zero;
     }
 
     /// <summary>Authors whose name matches.</summary>
@@ -148,11 +163,18 @@ public sealed class SemanticScholarClient
 
         var (text, _) = await _retry.ExecuteAsync(async ct =>
         {
+            await PaceAsync(ct).ConfigureAwait(false);
             using var request = makeRequest();
             using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
             var content = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
+                // If Semantic Scholar says how long to wait, wait that long (capped) before the retry policy's own wait.
+                if (response.StatusCode == HttpStatusCode.TooManyRequests && response.Headers.RetryAfter?.Delta is { } retryAfter)
+                {
+                    await Task.Delay(retryAfter < MaxRetryAfter ? retryAfter : MaxRetryAfter, ct).ConfigureAwait(false);
+                }
+
                 throw new HttpRequestException($"Semantic Scholar returned {(int)response.StatusCode}: {Short(content)}", null, response.StatusCode);
             }
 
@@ -161,6 +183,32 @@ public sealed class SemanticScholarClient
 
         await _cache.SetAsync(cacheKey, text, cancellationToken).ConfigureAwait(false);
         return JsonDocument.Parse(text);
+    }
+
+    /// <summary>
+    /// Reserves the next free time slot (at least <see cref="_requestGap"/> after the previous one) and waits for it.
+    /// Parallel callers get consecutive slots, so requests never come closer together than the gap.
+    /// </summary>
+    private async Task PaceAsync(CancellationToken cancellationToken)
+    {
+        if (_requestGap <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        TimeSpan wait;
+        lock (_paceLock)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var slot = _nextRequestAt > now ? _nextRequestAt : now;
+            _nextRequestAt = slot + _requestGap;
+            wait = slot - now;
+        }
+
+        if (wait > TimeSpan.Zero)
+        {
+            await Task.Delay(wait, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static JsonElement[] Data(JsonDocument json) =>

@@ -44,7 +44,7 @@ Research Scout does both, and every answer can be checked.
 | Eval: retrieval, citations, refusal | Done, results committed |
 | Eval: professor ranking | Waiting for names in `eval/professors.json` |
 | Live deployment (Render + Supabase + Qdrant Cloud) | Live |
-| Professor matching on the live site | Needs a Semantic Scholar API key (see [Troubleshooting](13-troubleshooting.md#semantic-scholar-429-too-many-requests)) |
+| Professor matching on the live site | Works on Semantic Scholar's free keyless pool; can be slow when it's busy (see [Troubleshooting](13-troubleshooting.md#semantic-scholar-429-too-many-requests)) |
 
 ## Tech stack
 
