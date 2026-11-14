@@ -5,7 +5,9 @@ A C#/.NET research assistant that runs on **my own agent harness**: no agent fra
 1. **Paper Q&A with page citations.** It downloads a paper, splits it into page-tagged chunks, and answers questions with tags like `[arxiv:2005.11401 p.4]` that link to the exact PDF page.
 2. **Professor matching.** It finds researchers at a university, scores how well their last 3 years of papers fit my interests (AI for software engineering, RAG, code intelligence), and drafts an outreach email that only cites papers they really wrote, after I approve it.
 
-**Live demo:** _add the Render URL here after deploy_ · The first request after 15 quiet minutes takes about a minute (free hosting).
+**Live demo:** https://research-scout-n8fg.onrender.com · The first request after 15 quiet minutes takes about a minute (free hosting).
+
+**Full documentation:** [`docs/`](docs/README.md): architecture, harness, retrieval, professor matching, API, CLI, configuration, deployment, evaluation and troubleshooting.
 
 > Why I built it: I'm applying to funded thesis-based MSc programs. Reading professor pages and papers by hand was slow, and generic chatbots invent citations. This tool's answers can be checked page by page.
 
