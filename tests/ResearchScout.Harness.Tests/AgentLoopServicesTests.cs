@@ -124,6 +124,22 @@ public class AgentLoopServicesTests
     }
 
     [Fact]
+    public async Task Streaming_KeepsStampsFromUpdates_SoCostIsCounted()
+    {
+        // The real SwitchableChatClient stamps which model answered on every streamed update;
+        // the cost calculator prices the response from that stamp.
+        var chat = new StampingChatClient(new ScriptedChatClient(Calls(Call("c1", "echo")), Text("done")));
+        var services = new AgentLoopServices { CostCalculator = new StampCostCalculator(0.01m) };
+
+        var result = await new AgentLoop(chat, new ToolRegistry().Add(LambdaTool.Echo()), services)
+            .RunAsync("hi", new AgentRunOptions { Stream = true });
+
+        Assert.Equal(AgentRunStatus.Completed, result.Status);
+        Assert.Equal(0.02m, result.CostUsd); // 2 responses × $0.01, only counted when the stamp survives
+        Assert.All(result.Steps, step => Assert.Equal(0.01m, step.CostUsd));
+    }
+
+    [Fact]
     public async Task Streaming_FailureBeforeAnyText_IsRetried()
     {
         var chat = new ScriptedChatClient(new HttpRequestException("busy", null, HttpStatusCode.ServiceUnavailable), Text("ok"));

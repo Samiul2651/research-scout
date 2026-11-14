@@ -194,7 +194,20 @@ public sealed class AgentLoop
             }
         }
 
-        return updates.ToChatResponse();
+        var response = updates.ToChatResponse();
+
+        // ToChatResponse does not copy the updates' AdditionalProperties onto the response. Callers stamp
+        // data there (for example which model answered, which the cost calculator needs), so carry it over.
+        foreach (var props in updates.Select(u => u.AdditionalProperties).OfType<AdditionalPropertiesDictionary>())
+        {
+            response.AdditionalProperties ??= [];
+            foreach (var (key, value) in props)
+            {
+                response.AdditionalProperties[key] = value;
+            }
+        }
+
+        return response;
     }
 
     private ChatOptions BuildChatOptions(AgentRunOptions options)

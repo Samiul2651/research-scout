@@ -106,6 +106,43 @@ internal sealed class FixedCostCalculator(decimal perResponse) : ICostCalculator
     public decimal CostUsd(ChatResponse response) => perResponse;
 }
 
+/// <summary>Wraps a client and stamps every response and streamed update, like SwitchableChatClient does.</summary>
+internal sealed class StampingChatClient(IChatClient inner) : IChatClient
+{
+    public const string Key = "test.model";
+
+    public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        var response = await inner.GetResponseAsync(messages, options, cancellationToken);
+        response.AdditionalProperties ??= [];
+        response.AdditionalProperties[Key] = "model-a";
+        return response;
+    }
+
+    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+        IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var update in inner.GetStreamingResponseAsync(messages, options, cancellationToken))
+        {
+            update.AdditionalProperties ??= [];
+            update.AdditionalProperties[Key] = "model-a";
+            yield return update;
+        }
+    }
+
+    public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+    public void Dispose() => inner.Dispose();
+}
+
+/// <summary>Charges a fixed amount, but only for responses that carry <see cref="StampingChatClient.Key"/> (0 otherwise).</summary>
+internal sealed class StampCostCalculator(decimal perResponse) : ICostCalculator
+{
+    public decimal CostUsd(ChatResponse response) =>
+        response.AdditionalProperties?.ContainsKey(StampingChatClient.Key) == true ? perResponse : 0m;
+}
+
 internal static class TestRetry
 {
     /// <summary>Real retry rules, but no sleeping; records the waits.</summary>
