@@ -19,6 +19,9 @@ services:
         sync: false
       - key: VOYAGE_API_KEY
         sync: false
+      # Voyage accounts without a payment method allow 3 requests / 10K tokens per minute. Set to "false" after adding one.
+      - key: VOYAGE_FREE_TIER
+        value: "true"
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: GEMINI_API_KEY

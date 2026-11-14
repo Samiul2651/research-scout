@@ -1,0 +1,137 @@
+{
+  "date": "2026-11-14T12:40:17.151952+00:00",
+  "questions": 15,
+  "model": "deepseek/deepseek-flash",
+  "costUsd": 0.0539859,
+  "citations": {
+    "questions": 15,
+    "answerableQuestions": 14,
+    "citationAccuracy": 0.7045454545454546,
+    "questionsWithCorrectCitation": 0.9285714285714286,
+    "questionsWithAnyCitation": 1,
+    "invalidCitations": 0,
+    "refusalAccuracy": 1
+  },
+  "perQuestion": [
+    {
+      "id": "rag-1",
+      "citations": 3,
+      "correctCitations": 3,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "rag-2",
+      "citations": 3,
+      "correctCitations": 3,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "rag-3",
+      "citations": 2,
+      "correctCitations": 2,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "rag-4",
+      "citations": 4,
+      "correctCitations": 3,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "csn-1",
+      "citations": 2,
+      "correctCitations": 2,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "csn-2",
+      "citations": 2,
+      "correctCitations": 2,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "csn-3",
+      "citations": 5,
+      "correctCitations": 1,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "cb-1",
+      "citations": 3,
+      "correctCitations": 2,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "cb-2",
+      "citations": 1,
+      "correctCitations": 1,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "cb-3",
+      "citations": 3,
+      "correctCitations": 0,
+      "invalidCitations": 0,
+      "anyCorrect": false,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "lim-1",
+      "citations": 6,
+      "correctCitations": 5,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "lim-2",
+      "citations": 3,
+      "correctCitations": 1,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "rc-1",
+      "citations": 4,
+      "correctCitations": 4,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "rc-2",
+      "citations": 3,
+      "correctCitations": 2,
+      "invalidCitations": 0,
+      "anyCorrect": true,
+      "refusedCorrectly": null
+    },
+    {
+      "id": "none-1",
+      "citations": 4,
+      "correctCitations": 0,
+      "invalidCitations": 0,
+      "anyCorrect": false,
+      "refusedCorrectly": true
+    }
+  ]
+}

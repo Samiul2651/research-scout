@@ -186,15 +186,16 @@ public sealed class SemanticScholarClient
             arxiv = Str(ids, "ArXiv");
         }
 
+        // Prefer arXiv's own PDF: publisher "open access" links often block scripts (403) or fail TLS.
+        // Fall back to the open-access link only for papers that are not on arXiv.
         string? pdf = null;
-        if (p.TryGetProperty("openAccessPdf", out var oa) && oa.ValueKind == JsonValueKind.Object)
-        {
-            pdf = Str(oa, "url");
-        }
-
-        if (string.IsNullOrWhiteSpace(pdf) && arxiv is not null)
+        if (arxiv is not null)
         {
             pdf = $"https://arxiv.org/pdf/{arxiv}";
+        }
+        else if (p.TryGetProperty("openAccessPdf", out var oa) && oa.ValueKind == JsonValueKind.Object)
+        {
+            pdf = Str(oa, "url");
         }
 
         return new PaperInfo(

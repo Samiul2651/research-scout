@@ -39,6 +39,33 @@ public class SemanticScholarClientTests
     }
 
     [Fact]
+    public async Task GetPaper_PrefersArxivPdf_OverPublisherOpenAccessLink()
+    {
+        var json = PaperJson.Replace(
+            "\"openAccessPdf\": null",
+            "\"openAccessPdf\": {\"url\": \"https://publisher.example.com/paper.pdf\"}",
+            StringComparison.Ordinal);
+        var handler = new RoutedHandler().On("paper/arXiv%3A2501.00001", json);
+
+        var paper = await Client(handler).GetPaperAsync("arXiv:2501.00001", default);
+
+        Assert.Equal("https://arxiv.org/pdf/2501.00001", paper?.PdfUrl);
+    }
+
+    [Fact]
+    public async Task GetPaper_NotOnArxiv_UsesOpenAccessLink()
+    {
+        var json = PaperJson
+            .Replace("\"ArXiv\": \"2501.00001\", ", "", StringComparison.Ordinal)
+            .Replace("\"openAccessPdf\": null", "\"openAccessPdf\": {\"url\": \"https://publisher.example.com/paper.pdf\"}", StringComparison.Ordinal);
+        var handler = new RoutedHandler().On("paper/abc123", json);
+
+        var paper = await Client(handler).GetPaperAsync("abc123", default);
+
+        Assert.Equal("https://publisher.example.com/paper.pdf", paper?.PdfUrl);
+    }
+
+    [Fact]
     public async Task GetPaper_NotFound_ReturnsNull()
     {
         var paper = await Client(new RoutedHandler()).GetPaperAsync("nope", default);
